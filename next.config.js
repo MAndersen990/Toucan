@@ -2,10 +2,10 @@
  * @type {import('next').NextConfig}
  */
 
-const isProd = process.env.NODE_ENV = 'production'
+//const isProd = process.env.NODE_ENV = 'production'
 
 const nextConfig = {
-    basePath: isProd ? '/Toucan' : '',
+  //  basePath: isProd ? '/Toucan' : '',
     output: 'export',  
      distDir: 'dist',
      images:{
