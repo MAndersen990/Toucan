@@ -1,5 +1,6 @@
 import Image from "next/image";
 //import prefix from "utils/prefix.ts"
+import { prefix } from "../../utils/prefix";
 
 export default function Home() {
   return (
