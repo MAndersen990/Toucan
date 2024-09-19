@@ -48,6 +48,8 @@ jobs:
             echo "Unable to determine package manager"
             exit 1
           fi
+      - name: Extract repository name
+        run: echo "BASE_PATH=/$(echo $GITHUB_REPOSITORY | cut -d '/' -f 2)" >> $GITHUB_ENV
       - name: Setup Node
         uses: actions/setup-node@v4
         with:

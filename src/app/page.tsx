@@ -1,4 +1,5 @@
 import Image from "next/image";
+//import prefix from "utils/prefix.ts"
 
 export default function Home() {
   return (
@@ -6,7 +7,7 @@ export default function Home() {
       <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
         <Image
             aria-hidden
-            src="/AlphaOrbit.png"
+            src={`${prefix}/AlphaOrbit.png`}
             alt="test"
             width={16}
             height={16}
