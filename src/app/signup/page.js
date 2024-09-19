@@ -1,8 +1,8 @@
 'use client'
 import { useState } from "react";
-import Link from 'next/link';
+import Link from 'next/link'
 
-export default function LoginPage() {
+export default function Page() {
   const [isRemembered, setIsRemembered] = useState(false);
 
   // Toggle the checkbox state
@@ -16,13 +16,13 @@ export default function LoginPage() {
         
         {/* Create Account Link - Positioned in top right */}
         <div className="absolute top-6 right-6 hidden sm:flex">
-          <span className="text-sm font-medium mr-1">New User?</span> 
-          <Link href="/signup/" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-            Create an account
+          <span className="text-sm font-medium mr-1">Already have an account?</span> 
+          <Link href="/" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
+            Sign In
           </Link>
         </div>
 
-        <div className="text-4xl my-10 text-center lg:text-left">Sign In</div>
+        <div className="text-4xl my-10 text-center lg:text-left">Create Your Account</div>
 
         {/* Flex container for social sign-in buttons */}
         <div className="flex flex-col lg:flex-row items-center justify-between">
@@ -42,7 +42,7 @@ export default function LoginPage() {
               alt="Google Logo"
               className="w-5 h-5 mr-2"
             />
-            Sign in with Google
+            Sign up with Google
           </button>
 
           {/* Apple Sign-In Button */}
@@ -65,13 +65,42 @@ export default function LoginPage() {
           </button>
         </div>
 
-        <div className="my-7 text-center lg:text-left">Or sign in using your email address</div>
+        <div className="my-7 text-center lg:text-left">Or sign up using your email address</div>
 
         {/* Flex container for inputs to be placed horizontally */}
         <div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4 my-4">
           {/* Username Input */}
           <div className="w-full lg:w-1/2">
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700">Username</label>
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700">Name</label>
+            <input 
+              type="text" 
+              id="username" 
+              placeholder="Enter your username"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-2xl shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              style={{
+                padding: "16px",
+              }}
+            />
+          </div>
+
+          {/* Password Input */}
+          <div className="w-full lg:w-1/2">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700">Username</label>
+            <input 
+              type="text" 
+              id="password" 
+              placeholder="Enter your password"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-2xl shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              style={{
+                padding: "16px",
+              }}
+            />
+          </div>
+        </div>
+        <div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4 my-4">
+          {/* Username Input */}
+          <div className="w-full lg:w-1/2">
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700">Your email</label>
             <input 
               type="text" 
               id="username" 
@@ -111,16 +140,12 @@ export default function LoginPage() {
               </div>
             </div>
             <label className="ml-2 block text-sm font-medium text-gray-700 cursor-pointer">
-              Remember me
+              I accept thhe <a className="text-sm text-indigo-600 hover:text-indigo-500">Terms and Conditions</a>
             </label>
           </div>
 
           {/* Forgot Password Link */}
-          <div className="mt-4 lg:mt-0">
-            <a href="#" className="text-sm text-indigo-600 hover:text-indigo-500">
-              Forgot your password?
-            </a>
-          </div>
+          
         </div>
 
         {/* Sign In Button */}
@@ -136,7 +161,7 @@ export default function LoginPage() {
               padding: "16px"
             }}
           >
-            Sign In
+            Sign Up
           </button>
         </div>
       </div>

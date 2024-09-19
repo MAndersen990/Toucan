@@ -22,7 +22,7 @@ export default function LogoPage() {
   
     {/* Invest like a Pro Title */}
     <div className="flex justify-left items-end h-1/5 w-5/6 ml-auto">
-      <h1 className="text-white text-6xl ">Invest like a Pro</h1>
+      <h1 className="text-white text-6xl ">Start Investing like a Pro today!</h1>
     </div>
 
     {/* Doughnut Image */}
