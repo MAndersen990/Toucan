@@ -12,7 +12,7 @@ export default function LogoPage() {
     {/* Logo and Title */}
     <div className="absolute top-6 left-6 sm:flex items-center ml-6">
       <Image
-        src="../public/AlphaOrbit.png"
+        src="./AlphaOrbit.png"
         width={48}
         height={48}
         alt="Alpha Orbit Logo"
@@ -28,7 +28,7 @@ export default function LogoPage() {
     {/* Doughnut Image */}
     <div className="flex justify-left items-end h-3/5 w-5/6 ml-auto">
       <Image
-        src="../../doughnut.png"
+        src="./doughnut.png"
         width={350}
         height={350}
         alt="Alpha Orbit Logo"
