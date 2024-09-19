@@ -1,0 +1,39 @@
+.test {
+  background: transparent
+    linear-gradient(90deg, #6149cd 0%, #a654ac 47%, #ea5f8b 100%) 0% 0%
+    no-repeat padding-box;
+}
+
+.Socials {
+  background: transparent
+    linear-gradient(90deg, #f9b035 0%, #f98c4e 53%, #f96767 100%) 0% 0%
+    no-repeat padding-box;
+  box-shadow: 4px 23px 57px #f9676742;
+  border-radius: 22px;
+  opacity: 1;
+  font-size: 16px;
+  padding:15px;
+  min-width: 50%;
+  text-align: center;
+  white-space: nowrap;
+  color: #FFFFFF;
+  cursor: pointer;
+}
+
+.Socials:last-child{
+    min-width: 35%;
+    background: #FFFFFF 0% 0% no-repeat padding-box;
+box-shadow: 3px 16px 40px #695F9724;
+border-radius: 22px;
+opacity: 1;
+color: #6149CD
+}
+
+.signUp{
+    background: transparent linear-gradient(90deg, #6149CD 0%, #A654AC 47%, #EA5F8B 100%) 0% 0% no-repeat padding-box;
+box-shadow: 4px 23px 57px #6149CD42;
+border-radius: 22px;
+opacity: 1;
+color: #FFFFFF;
+padding: 15px;
+}
