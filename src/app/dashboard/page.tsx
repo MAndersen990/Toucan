@@ -1,11 +1,11 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, ReactNode } from 'react'
 import { Line } from 'react-chartjs-2'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js'
 import { FaThLarge, FaSearch, FaNewspaper, FaLightbulb, FaChartLine, FaWallet, FaEnvelope, FaBell, FaComments, FaCog, FaSignOutAlt } from 'react-icons/fa'
 import axios from 'axios'
-import { subYears, format, subMonths } from 'date-fns'
+import { subYears, format } from 'date-fns'
 import debounce from 'lodash/debounce'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
@@ -21,10 +21,41 @@ interface Stock {
   historicalPrices: number[]
 }
 
+interface SearchMatch {
+  symbol: string
+  name: string
+}
+
+interface ChartDataset {
+  label: string
+  data: number[]
+  borderColor: string
+  backgroundColor: string
+  borderWidth: number
+  fill: boolean
+}
+
+interface ChartData {
+  labels: string[]
+  datasets: ChartDataset[]
+}
+
+interface Suggestion {
+  ticker: string
+  name: string
+}
+
+interface InsightItemProps {
+  icon: React.ReactNode
+  text: string
+  badge?: number
+  badgeColor?: string
+}
+
 function DashboardPage() {
   const [stocks, setStocks] = useState<Stock[]>([])
   const [checkedStocks, setCheckedStocks] = useState<string[]>([])
-  const [chartData, setChartData] = useState({
+  const [chartData, setChartData] = useState<ChartData>({
     labels: Array.from({ length: 12 }, (_, i) => new Date(Date.now() - (11 - i) * 30 * 24 * 60 * 60 * 1000).toLocaleString('default', { month: 'short' })),
     datasets: [],
   })
@@ -32,10 +63,10 @@ function DashboardPage() {
   const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
 
   const [search, setSearch] = useState('')
-  const [suggestions, setSuggestions] = useState([])
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
-  const API_KEY = 'I5jif7iRRz8vBxvOgVZ0Sh9y59oXfAJh' // Replace with your actual API key
+  const API_KEY = 'I5jif7iRRz8vBxvOgVZ0Sh9y59oXfAJh'
 
   const getSuggestions = useCallback(
     debounce(async (text: string) => {
@@ -43,7 +74,7 @@ function DashboardPage() {
         try {
           const response = await axios.get(`https://financialmodelingprep.com/api/v3/search?query=${text}&limit=10&apikey=${API_KEY}`)
           const matches = response.data || []
-          setSuggestions(matches.map(match => ({
+          setSuggestions(matches.map((match: SearchMatch) => ({
             ticker: match.symbol,
             name: match.name
           })))
@@ -88,7 +119,7 @@ function DashboardPage() {
 
       const historicalData = fmpResponse.data.historical
 
-      // Fetch analysis data from Firebase function (you might need to adjust this URL)
+      // Fetch analysis data from Firebase function
       const firebaseResponse = await axios.get(`https://us-central1-alphaorbit-2cf88.cloudfunctions.net/analyzeStocks?tickers=${ticker.toUpperCase()}`)
       const analysisData = firebaseResponse.data.stockData[0]
 
@@ -101,7 +132,7 @@ function DashboardPage() {
           recommendation: analysisData.recommendation,
           volatilityRating: analysisData.volatility_rating,
           currentPrice: Number(analysisData.current_price).toFixed(2),
-          historicalPrices: historicalData.map(day => day.close).reverse()
+          historicalPrices: historicalData.map((day: { close: number }) => day.close).reverse()
         }
 
         setStocks(prevStocks => {
@@ -136,7 +167,6 @@ function DashboardPage() {
         currentPrice: '150.25',
         historicalPrices: [140, 145, 148, 152, 149, 155, 158, 160, 157, 159, 162, 165],
       },
-      // Add more mock stocks as needed
     ]
     setStocks(mockStocks)
     setCheckedStocks(mockStocks.map(stock => stock.ticker))
@@ -285,9 +315,9 @@ function DashboardPage() {
               />
               {suggestions.length > 0 && (
                 <div className="absolute z-20 w-full bg-white border border-gray-200 mt-1 rounded-md shadow-lg max-h-60 overflow-auto">
-                  {suggestions.map((item, index) => (
+                  {suggestions.map((item: Suggestion) => (
                     <div
-                      key={index}
+                      key={item.ticker}
                       className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                       onClick={() => selectSuggestion(item)}
                     >
@@ -376,7 +406,7 @@ function DashboardPage() {
   )
 }
 
-function NavItem({ icon, text, active = false }) {
+function NavItem({ icon, text, active = false }: { icon: ReactNode; text: string; active?: boolean }) {
   return (
     <a
       href="#"
@@ -390,7 +420,7 @@ function NavItem({ icon, text, active = false }) {
   )
 }
 
-function InsightItem({ icon, text, badge, badgeColor }) {
+function InsightItem({ icon, text, badge, badgeColor }: InsightItemProps) {
   return (
     <div className="flex items-center justify-between py-2">
       <div className="flex items-center">
