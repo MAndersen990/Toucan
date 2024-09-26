@@ -125,19 +125,21 @@ export default function LoginPage() {
 
         {/* Sign In Button */}
         <div className="mt-10">
-          <button
-            type="submit"
-            className="w-full lg:w-1/2 mx-auto py-2 px-4 border border-transparent text-sm font-medium rounded-2xl"
-            style={{
-              background: "transparent linear-gradient(90deg, #6149CD 0%, #A654AC 47%, #EA5F8B 100%)",
-              color: "#FFFFFF",
-              cursor: "pointer",
-              boxShadow: "3px 16px 40px #695F9724",
-              padding: "16px"
-            }}
-          >
-            Sign In
-          </button>
+            <Link href="/dashboard">
+              <button
+                type="submit"
+                className="w-full lg:w-1/2 mx-auto py-2 px-4 border border-transparent text-sm font-medium rounded-2xl"
+                style={{
+                  background: "transparent linear-gradient(90deg, #6149CD 0%, #A654AC 47%, #EA5F8B 100%)",
+                  color: "#FFFFFF",
+                  cursor: "pointer",
+                  boxShadow: "3px 16px 40px #695F9724",
+                  padding: "16px"
+                }}
+              >
+              Sign In
+            </button>
+          </Link>
         </div>
       </div>
     </div>

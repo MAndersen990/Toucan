@@ -7,8 +7,8 @@ import Logo from "./login/logo.js"
 export default function Home() {
   return (
     <div className="flex min-h-screen">
-    <Logo></Logo>
-    <Login></Login>
+      <Logo/>
+      <Login/>
     </div>
   );
 }
