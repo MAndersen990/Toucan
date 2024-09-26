@@ -221,7 +221,7 @@ function DashboardPage() {
       <aside className="w-64 bg-white shadow-md">
         <div className="p-4">
           <div className="flex items-center mb-6">
-            <img src="/AlphaOrbit.png" alt="AlphaOrbit" className="w-8 h-8 mr-2" />
+            <img src="./AlphaOrbit.png" alt="AlphaOrbit" className="w-8 h-8 mr-2" />
             <span className="text-xl font-bold">AlphaOrbit</span>
           </div>
           <nav>
