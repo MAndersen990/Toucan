@@ -7,8 +7,8 @@ export const metadata: Metadata = {
   title: 'AlphaOrbit',
   description: 'Your application description',
   icons: {
-    icon: '/AlphaOrbit.png',
-    apple: '/AlphaOrbit.png',
+    icon: './AlphaOrbit.png',
+    apple: './AlphaOrbit.png',
   },
 }
 
