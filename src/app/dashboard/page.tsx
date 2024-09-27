@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, ReactNode } from 'react'
+import React, { useState, useEffect, useCallback, ReactNode, useMemo } from 'react'
 import { Line } from 'react-chartjs-2'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js'
 import { FaThLarge, FaSearch, FaNewspaper, FaLightbulb, FaChartLine, FaWallet, FaEnvelope, FaBell, FaComments, FaCog, FaSignOutAlt } from 'react-icons/fa'
@@ -65,7 +65,7 @@ function DashboardPage() {
   const [search, setSearch] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  //config for sort
+  
   const [sortConfig, setSortConfig] = useState<{ key: keyof Stock | keyof Stock; direction: 'asc' | 'desc' }>({ key: 'ticker', direction: 'asc' });
 
 
@@ -377,27 +377,79 @@ function DashboardPage() {
             </div>
           )}
 
-          <table className="w-full">
+<table className="w-full">
             <thead>
               <tr className="bg-gray-100">
-                <th className="py-2 px-4 text-left">Company Name / Ticker</th>
-                <th className="py-2 px-4 text-center">+/- Gain</th>
-                <th className="py-2 px-4 text-center">Rating</th>
-                <th className="py-2 px-4 text-center">Signal</th>
-                <th className="py-2 px-4 text-center">Volatility</th>
-                <th className="py-2 px-4 text-center">Current Price</th>
+                <th
+                  className="py-2 px-4 text-left cursor-pointer"
+                  onClick={() => handleSort('companyName')}
+                >
+                  Company Name / Ticker
+                  <span className="ml-2 w-4 inline-block">
+                    {sortConfig.key === 'companyName' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
+                  </span>
+                </th>
+                <th
+                  className="py-2 px-4 text-center cursor-pointer"
+                  onClick={() => handleSort('percentageChange')}
+                >
+                  +/- Gain
+                  <span className="ml-2 w-4 inline-block">
+                    {sortConfig.key === 'percentageChange' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
+                  </span>
+                </th>
+                <th
+                  className="py-2 px-4 text-center cursor-pointer"
+                  onClick={() => handleSort('finalGrade')}
+                >
+                  Rating
+                  <span className="ml-2 w-4 inline-block">
+                    {sortConfig.key === 'finalGrade' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
+                  </span>
+                </th>
+                <th
+                  className="py-2 px-4 text-center cursor-pointer"
+                  onClick={() => handleSort('recommendation')}
+                >
+                  Signal
+                  <span className="ml-2 w-4 inline-block">
+                    {sortConfig.key === 'recommendation' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
+                  </span>
+                </th>
+                <th
+                  className="py-2 px-4 text-center cursor-pointer"
+                  onClick={() => handleSort('volatilityRating')}
+                >
+                  Volatility
+                  <span className="ml-2 w-4 inline-block">
+                    {sortConfig.key === 'volatilityRating' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
+                  </span>
+                </th>
+                <th
+                  className="py-2 px-4 text-center cursor-pointer"
+                  onClick={() => handleSort('currentPrice')}
+                >
+                  Current Price
+                  <span className="ml-2 w-4 inline-block">
+                    {sortConfig.key === 'currentPrice' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
+                  </span>
+                </th>
                 <th className="py-2 px-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {stocks.map((stock) => (
+              {sortedStocks.map((stock) => (
                 <tr key={stock.ticker} className="border-b">
                   <td className="py-2 px-4">
                     <div className="flex items-center">
                       <input
                         type="checkbox"
                         checked={checkedStocks.includes(stock.ticker)}
-                        onChange={() => toggleStockCheck(stock.ticker)}
+                        onChange={() =>
+                          setCheckedStocks((prev) =>
+                            prev.includes(stock.ticker) ? prev.filter((t) => t !== stock.ticker) : [...prev, stock.ticker]
+                          )
+                        }
                         className="mr-2"
                       />
                       <div>
@@ -406,7 +458,9 @@ function DashboardPage() {
                       </div>
                     </div>
                   </td>
-                  <td className={`py-2 px-4 text-center ${parseFloat(stock.percentageChange) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  <td
+                    className={`py-2 px-4 text-center ${parseFloat(stock.percentageChange) >= 0 ? 'text-green-500' : 'text-red-500'}`}
+                  >
                     {stock.percentageChange}%
                   </td>
                   <td className="py-2 px-4 text-center">{stock.finalGrade}</td>
@@ -415,7 +469,7 @@ function DashboardPage() {
                   <td className="py-2 px-4 text-center">${stock.currentPrice}</td>
                   <td className="py-2 px-4 text-center">
                     <button
-                      onClick={() => deleteStock(stock.ticker)}
+                      onClick={() => setStocks((prev) => prev.filter((s) => s.ticker !== stock.ticker))}
                       className="text-red-500 hover:text-red-700"
                     >
                       🗑️
