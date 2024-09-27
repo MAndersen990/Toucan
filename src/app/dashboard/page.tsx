@@ -197,14 +197,14 @@ function DashboardPage() {
     }))
   }
 
-  // function toggleStockCheck(ticker: string) {
-  //   setCheckedStocks(prev => {
-  //     const newCheckedStocks = prev.includes(ticker)
-  //       ? prev.filter(t => t !== ticker)
-  //       : [...prev, ticker]
-  //     return newCheckedStocks
-  //   })
-  // }
+  function toggleStockCheck(ticker: string) {
+    setCheckedStocks(prev => {
+      const newCheckedStocks = prev.includes(ticker)
+        ? prev.filter(t => t !== ticker)
+        : [...prev, ticker]
+      return newCheckedStocks
+    })
+  }
 
   const deleteStock = (ticker: string) => {
     setStocks(prevStocks => {
@@ -445,11 +445,7 @@ function DashboardPage() {
                       <input
                         type="checkbox"
                         checked={checkedStocks.includes(stock.ticker)}
-                        onChange={() =>
-                          setCheckedStocks((prev) =>
-                            prev.includes(stock.ticker) ? prev.filter((t) => t !== stock.ticker) : [...prev, stock.ticker]
-                          )
-                        }
+                        onChange={() => toggleStockCheck(stock.ticker)}
                         className="mr-2"
                       />
                       <div>
