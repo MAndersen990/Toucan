@@ -68,6 +68,11 @@ function DashboardPage() {
   
   const [sortConfig, setSortConfig] = useState<{ key: keyof Stock | keyof Stock; direction: 'asc' | 'desc' }>({ key: 'ticker', direction: 'asc' });
 
+  const [filteredStocks, setFilteredStocks] = useState<Stock[]>([]); // To store filtered data
+  const [filterType, setFilterType] = useState(''); // For tracking filter type (Volatility, Rating, Signal)
+  const [filterValue, setFilterValue] = useState(''); // For tracking the filter value
+  const [isFilterOpen, setIsFilterOpen] = useState(false); // Track filter dropdown visibility
+  const [filterOptions, setFilterOptions] = useState<string[]>([]);
 
   const API_KEY = 'I5jif7iRRz8vBxvOgVZ0Sh9y59oXfAJh'
 
@@ -146,6 +151,7 @@ function DashboardPage() {
           const newCheckedStocks = [...new Set([...checkedStocks, newStock.ticker])]
           setCheckedStocks(newCheckedStocks)
           updateChartData(updatedStocks, newCheckedStocks)
+          setFilteredStocks(updatedStocks)
           
           return updatedStocks
         })
@@ -173,6 +179,7 @@ function DashboardPage() {
     ]
     setStocks(mockStocks)
     setCheckedStocks(mockStocks.map(stock => stock.ticker))
+    setFilteredStocks(mockStocks);
   }, [])
 
   useEffect(() => {
@@ -212,12 +219,13 @@ function DashboardPage() {
       setCheckedStocks(prev => {
         const newCheckedStocks = prev.filter(t => t !== ticker)
         updateChartData(updatedStocks, newCheckedStocks)
+        setFilteredStocks(updatedStocks)
         return newCheckedStocks
       })
       return updatedStocks
     })
   }
-  const isNumber = (value: string | number[]) => !isNaN(Number(value));
+  
   const handleSort = (key: keyof Stock) => {
     let direction: 'asc' | 'desc' = 'desc'; // Default to descending on the first click
     if (sortConfig.key === key && sortConfig.direction === 'desc') {
@@ -228,30 +236,78 @@ function DashboardPage() {
 
   const sortedStocks = useMemo(() => {
     if (sortConfig.key) {
-      return [...stocks].sort((a, b) => {
+      return [...filteredStocks].sort((a, b) => {
         const aValue = a[sortConfig.key];
         const bValue = b[sortConfig.key];
 
-        if (isNumber(aValue) && isNumber(bValue)) {
-          // If sorting numeric columns
-          const aNum = parseFloat(aValue as string);
-          const bNum = parseFloat(bValue as string);
-
-          return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum; // Ascending or descending for numbers
-        } else {
-          // If sorting text columns
-          const aText = (aValue as string).toLowerCase();
-          const bText = (bValue as string).toLowerCase();
-
-          if (sortConfig.direction === 'asc') {
-            return aText < bText ? 1 : -1;
-          }
-          return aText > bText ? 1 : -1; // Ascending or descending for text
+        // Sort by number
+        if (!isNaN(parseFloat(aValue as string)) && !isNaN(parseFloat(bValue as string))) {
+          return sortConfig.direction === 'asc'
+            ? parseFloat(aValue as string) - parseFloat(bValue as string)
+            : parseFloat(bValue as string) - parseFloat(aValue as string);
         }
+
+        // Sort by string
+        return sortConfig.direction === 'desc'
+          ? String(aValue).localeCompare(String(bValue))
+          : String(bValue).localeCompare(String(aValue));
       });
     }
-    return stocks;
-  }, [stocks, sortConfig]);
+    return filteredStocks;
+  }, [filteredStocks, sortConfig]);
+
+  const handleFilter = () => {
+    if (!filterType || !filterValue) return; // No filtering if type or value is missing
+
+    const filteredData = stocks.filter((stock) => {
+      switch (filterType) {
+        case 'Volatility':
+          return stock.volatilityRating.toLowerCase() === filterValue.toLowerCase();
+        case 'Rating':
+          return stock.finalGrade.toLowerCase() === filterValue.toLowerCase();
+        case 'Signal':
+          return stock.recommendation.toLowerCase() === filterValue.toLowerCase();
+        case 'Company Name':
+        case 'Ticker':
+          return stock.companyName.toLowerCase().includes(filterValue.toLowerCase()) || stock.ticker.toLowerCase().includes(filterValue.toLowerCase());
+        default:
+          return true;
+      }
+    });
+
+    setFilteredStocks(filteredData);
+  };
+
+  const resetFilter = () => {
+    setFilteredStocks(stocks); // Show all stocks again
+    setFilterType(''); // Clear filter type and value
+    setFilterValue('');
+  };
+
+  // Generate unique filter options based on the selected filter type
+  useEffect(() => {
+    if (filterType) {
+      let options: string[] = [];
+
+      switch (filterType) {
+        case 'Volatility':
+          options = Array.from(new Set(stocks.map((stock) => stock.volatilityRating)));
+          break;
+        case 'Rating':
+          options = Array.from(new Set(stocks.map((stock) => stock.finalGrade)));
+          break;
+        case 'Signal':
+          options = Array.from(new Set(stocks.map((stock) => stock.recommendation)));
+          break;
+        default:
+          options = [];
+      }
+
+      setFilterOptions(options); // Update the filter options based on the selected filter type
+    } else {
+      setFilterOptions([]); // Clear options if no filter type is selected
+    }
+  }, [filterType, stocks]);
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -349,7 +405,7 @@ function DashboardPage() {
                 placeholder="Search Company or Ticker(s)"
                 className="border rounded px-3 py-2 w-full"
                 value={search}
-                onChange={(e) => handleSearchChange(e.target.value)}
+                onChange={(e) => {handleSearchChange(e.target.value); setFilterValue(e.target.value);}}
               />
               {suggestions.length > 0 && (
                 <div className="absolute z-20 w-full bg-white border border-gray-200 mt-1 rounded-md shadow-lg max-h-60 overflow-auto">
@@ -365,9 +421,65 @@ function DashboardPage() {
                 </div>
               )}
             </div>
-            <button className="bg-gray-200 text-gray-700 px-4 py-2 rounded">
+            <button className="bg-gray-200 text-gray-700 px-4 py-2 rounded"
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+            >
               Filter ▼
             </button>
+
+            {isFilterOpen && (
+            <div className="absolute right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg p-4 z-10">
+              {/* Filter Type Dropdown */}
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="block w-full border rounded px-3 py-2 mb-2"
+              >
+                <option value="">Select Filter Type</option>
+                <option value="Volatility">Volatility</option>
+                <option value="Rating">Rating</option>
+                <option value="Signal">Signal</option>
+              </select>
+
+              {/* Dynamic Filter Value Dropdown */}
+              {filterOptions.length > 0 && (
+                <select
+                  value={filterValue}
+                  onChange={(e) => setFilterValue(e.target.value)}
+                  className="block w-full border rounded px-3 py-2 mb-2"
+                >
+                  <option value="">Select Value</option>
+                  {filterOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <div className="flex space-x-4 justify-end">
+                {/* Apply Filter Button */}
+                <button
+                  onClick={() => {
+                    handleFilter();
+                    setIsFilterOpen(false); // Close dropdown after applying filter
+                  }}
+                  className="bg-blue-500 text-white px-4 py-2 rounded"
+                >
+                  Apply Filter
+                </button>
+
+                {/* Reset Filter Button */}
+                <button onClick={() => {
+                    resetFilter();
+                    setIsFilterOpen(false); // Close dropdown after applying filter
+                  }} className="bg-gray-300 text-gray-700 px-4 py-2 rounded">
+                  Reset Filter
+                </button>
+              </div>
+            </div>
+          )}
+            
           </div>
 
           {isLoading && (
@@ -378,103 +490,103 @@ function DashboardPage() {
           )}
 
 <table className="w-full">
-            <thead>
-              <tr className="bg-gray-100">
-                <th
-                  className="py-2 px-4 text-left cursor-pointer"
-                  onClick={() => handleSort('companyName')}
+        <thead>
+          <tr className="bg-gray-100">
+            <th
+              className="py-2 px-4 text-left cursor-pointer"
+              onClick={() => handleSort('companyName')}
+            >
+              Company Name / Ticker
+              <span className="ml-2 w-4 inline-block">
+                {sortConfig.key === 'companyName' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
+              </span>
+            </th>
+            <th
+              className="py-2 px-4 text-center cursor-pointer"
+              onClick={() => handleSort('percentageChange')}
+            >
+              +/- Gain
+              <span className="ml-2 w-4 inline-block">
+                {sortConfig.key === 'percentageChange' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
+              </span>
+            </th>
+            <th
+              className="py-2 px-4 text-center cursor-pointer"
+              onClick={() => handleSort('finalGrade')}
+            >
+              Rating
+              <span className="ml-2 w-4 inline-block">
+                {sortConfig.key === 'finalGrade' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
+              </span>
+            </th>
+            <th
+              className="py-2 px-4 text-center cursor-pointer"
+              onClick={() => handleSort('recommendation')}
+            >
+              Signal
+              <span className="ml-2 w-4 inline-block">
+                {sortConfig.key === 'recommendation' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
+              </span>
+            </th>
+            <th
+              className="py-2 px-4 text-center cursor-pointer"
+              onClick={() => handleSort('volatilityRating')}
+            >
+              Volatility
+              <span className="ml-2 w-4 inline-block">
+                {sortConfig.key === 'volatilityRating' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
+              </span>
+            </th>
+            <th
+              className="py-2 px-4 text-center cursor-pointer"
+              onClick={() => handleSort('currentPrice')}
+            >
+              Current Price
+              <span className="ml-2 w-4 inline-block">
+                {sortConfig.key === 'currentPrice' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
+              </span>
+            </th>
+            <th className="py-2 px-4 text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedStocks.map((stock) => (
+            <tr key={stock.ticker} className="border-b">
+              <td className="py-2 px-4">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={checkedStocks.includes(stock.ticker)}
+                    onChange={() => toggleStockCheck(stock.ticker)}
+                    className="mr-2"
+                  />
+                  <div>
+                    <p className="font-semibold">{stock.companyName}</p>
+                    <p className="text-sm text-gray-500">{stock.ticker}</p>
+                  </div>
+                </div>
+              </td>
+              <td
+                className={`py-2 px-4 text-center ${parseFloat(stock.percentageChange) >= 0 ? 'text-green-500' : 'text-red-500'}`}
+              >
+                {stock.percentageChange}%
+              </td>
+              <td className="py-2 px-4 text-center">{stock.finalGrade}</td>
+              <td className="py-2 px-4 text-center">{stock.recommendation}</td>
+              <td className="py-2 px-4 text-center">{stock.volatilityRating}</td>
+              <td className="py-2 px-4 text-center">${stock.currentPrice}</td>
+              <td className="py-2 px-4 text-center">
+                <button
+                  onClick={() => deleteStock(stock.ticker)}
+                  className="text-red-500 hover:text-red-700"
                 >
-                  Company Name / Ticker
-                  <span className="ml-2 w-4 inline-block">
-                    {sortConfig.key === 'companyName' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
-                  </span>
-                </th>
-                <th
-                  className="py-2 px-4 text-center cursor-pointer"
-                  onClick={() => handleSort('percentageChange')}
-                >
-                  +/- Gain
-                  <span className="ml-2 w-4 inline-block">
-                    {sortConfig.key === 'percentageChange' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
-                  </span>
-                </th>
-                <th
-                  className="py-2 px-4 text-center cursor-pointer"
-                  onClick={() => handleSort('finalGrade')}
-                >
-                  Rating
-                  <span className="ml-2 w-4 inline-block">
-                    {sortConfig.key === 'finalGrade' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
-                  </span>
-                </th>
-                <th
-                  className="py-2 px-4 text-center cursor-pointer"
-                  onClick={() => handleSort('recommendation')}
-                >
-                  Signal
-                  <span className="ml-2 w-4 inline-block">
-                    {sortConfig.key === 'recommendation' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
-                  </span>
-                </th>
-                <th
-                  className="py-2 px-4 text-center cursor-pointer"
-                  onClick={() => handleSort('volatilityRating')}
-                >
-                  Volatility
-                  <span className="ml-2 w-4 inline-block">
-                    {sortConfig.key === 'volatilityRating' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
-                  </span>
-                </th>
-                <th
-                  className="py-2 px-4 text-center cursor-pointer"
-                  onClick={() => handleSort('currentPrice')}
-                >
-                  Current Price
-                  <span className="ml-2 w-4 inline-block">
-                    {sortConfig.key === 'currentPrice' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
-                  </span>
-                </th>
-                <th className="py-2 px-4 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedStocks.map((stock) => (
-                <tr key={stock.ticker} className="border-b">
-                  <td className="py-2 px-4">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={checkedStocks.includes(stock.ticker)}
-                        onChange={() => toggleStockCheck(stock.ticker)}
-                        className="mr-2"
-                      />
-                      <div>
-                        <p className="font-semibold">{stock.companyName}</p>
-                        <p className="text-sm text-gray-500">{stock.ticker}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td
-                    className={`py-2 px-4 text-center ${parseFloat(stock.percentageChange) >= 0 ? 'text-green-500' : 'text-red-500'}`}
-                  >
-                    {stock.percentageChange}%
-                  </td>
-                  <td className="py-2 px-4 text-center">{stock.finalGrade}</td>
-                  <td className="py-2 px-4 text-center">{stock.recommendation}</td>
-                  <td className="py-2 px-4 text-center">{stock.volatilityRating}</td>
-                  <td className="py-2 px-4 text-center">${stock.currentPrice}</td>
-                  <td className="py-2 px-4 text-center">
-                    <button
-                       onClick={() => deleteStock(stock.ticker)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      🗑️
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  🗑️
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
         </div>
       </main>
 
