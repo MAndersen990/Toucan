@@ -1,6 +1,6 @@
 "use client"
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { signOut, User } from 'firebase/auth';
+import { User } from 'firebase/auth';
 import { auth, createUserWithEmailAndPassword, db } from '../firebase/firebaseConfig';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
@@ -42,9 +42,13 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     await setDoc(doc(db, 'users', userCredential.user.uid), { name, username });
   };
 
-  const logout = () => {
-    signOut(auth)
-  }
+  const logout = async (): Promise<void> => {
+    try {
+      await auth.signOut()
+    } catch (error) {
+      console.error("Error during logout:", error)
+    }
+  };
 
   const getUserData = async () => {
     const user = auth.currentUser
