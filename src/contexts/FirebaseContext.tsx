@@ -1,6 +1,6 @@
 "use client"
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User } from 'firebase/auth';
+import { signOut, User } from 'firebase/auth';
 import { auth, createUserWithEmailAndPassword, db } from '../firebase/firebaseConfig';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
@@ -23,17 +23,23 @@ export const useFirebase = () => {
 
 export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const router = useRouter()
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
-    console.log(user)
-    const unsubscribe = auth.onAuthStateChanged(setUser);
-    console.log("logged in user", user);
-    if (!user) {
-        router.push('/')
-    }
-    return unsubscribe;
-  }, []);
+    const unsubscribe = auth.onAuthStateChanged((authUser) => {
+      setUser(authUser);
+      setLoading(false);
+
+      if (authUser) {
+        router.push('/dashboard');
+      } else {
+        router.push('/');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
 
   const signUp = async (email: string, password: string, name: string, username: string) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -44,7 +50,7 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const logout = async (): Promise<void> => {
     try {
-      await auth.signOut()
+      await signOut(auth)
     } catch (error) {
       console.error("Error during logout:", error)
     }
@@ -59,6 +65,7 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }
   const value = {
     user,
+    loading,
     signUp,
     logout,
     getUserData
@@ -66,7 +73,7 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   return (
     <FirebaseContext.Provider value={value}>
-      {children}
+      {!loading && children}
     </FirebaseContext.Provider>
   );
 };
