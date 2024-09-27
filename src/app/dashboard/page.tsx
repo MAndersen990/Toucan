@@ -7,7 +7,7 @@ import { FaThLarge, FaSearch, FaNewspaper, FaLightbulb, FaChartLine, FaWallet, F
 import axios from 'axios'
 import { format, subMonths } from 'date-fns'
 import debounce from 'lodash/debounce'
-import { useFirebase } from '../../contexts/FirebaseContext';
+import { useFirebase } from '../../contexts/FirebaseContext'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
 
@@ -54,8 +54,8 @@ interface InsightItemProps {
 }
 
 function DashboardPage() {
-  const { user, getUserData, logout } = useFirebase();
-  const [userData, setUserData] = useState<{ name: string; watchlist: string[] } | null>(null);
+  const { user, logout } = useFirebase()
+  const [userData, setUserData] = useState<{ name: string; watchlist: string[] } | null>(null)
   const [stocks, setStocks] = useState<Stock[]>([])
   const [checkedStocks, setCheckedStocks] = useState<string[]>([])
   const [chartData, setChartData] = useState<ChartData>({
@@ -169,12 +169,16 @@ function DashboardPage() {
   useEffect(() => {
     const fetchUserData = async () => {
       if (user) {
-        const data = await getUserData();
-        setUserData(data);
+        // Assuming the FirebaseContext now provides a method to get user data
+        const data = await user.getIdTokenResult()
+        setUserData({
+          name: user.displayName || 'User',
+          watchlist: data.claims.watchlist || []
+        })
       }
-    };
-    fetchUserData();
-  }, [user, getUserData]);
+    }
+    fetchUserData()
+  }, [user])
 
   useEffect(() => {
     // Simulating fetched data
