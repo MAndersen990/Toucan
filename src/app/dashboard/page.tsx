@@ -173,7 +173,7 @@ function DashboardPage() {
         const data = await user.getIdTokenResult()
         setUserData({
           name: user.displayName || 'User',
-          watchlist: data.claims.watchlist || []
+          watchlist: data.claims.watchlist as string[] || []
         })
       }
     }

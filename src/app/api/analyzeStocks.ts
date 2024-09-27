@@ -13,7 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-      let headers: Record<string, string> = {}
+      const headers: Record<string, string> = {}
 
       // Only get App Check token if appCheck is initialized
       if (appCheck) {
