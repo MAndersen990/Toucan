@@ -1,6 +1,6 @@
 "use client"
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { signOut, User } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, User } from 'firebase/auth';
 import { auth, createUserWithEmailAndPassword, db } from '../firebase/firebaseConfig';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
@@ -30,10 +30,6 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const unsubscribe = auth.onAuthStateChanged((authUser) => {
       setUser(authUser);
       setLoading(false);
-
-      if (!authUser) {
-        router.push('/');
-      }
     });
 
     return () => unsubscribe();
@@ -46,9 +42,16 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     await setDoc(doc(db, 'users', userCredential.user.uid), { name, username });
   };
 
+  const login = async (email: string, password: string) => {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+
+    return userCredential.user;
+  };
+  
   const logout = async (): Promise<void> => {
     try {
       await signOut(auth)
+      router.push('/');
     } catch (error) {
       console.error("Error during logout:", error)
     }
@@ -64,6 +67,7 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const value = {
     user,
     loading,
+    login,
     signUp,
     logout,
     getUserData

@@ -1,8 +1,7 @@
 'use client'
 import { useState } from "react";
 import Link from 'next/link';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../../firebase/firebaseConfig';
+import { useFirebase } from "@/contexts/FirebaseContext";
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
@@ -11,6 +10,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const router = useRouter();
+  const { login } = useFirebase();
 
   const handleCheckboxClick = () => {
     setIsRemembered(!isRemembered);
@@ -19,8 +19,14 @@ export default function LoginPage() {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push('/dashboard');
+      login(email, password)
+      .then(() => {
+        router.push('/dashboard');
+      })
+      .catch((error) => {
+        setError('Failed to log in. Please check your credentials.');
+        console.error('Login error:', error);
+      });
     } catch (error) {
       setError('Failed to log in. Please check your credentials.');
       console.error('Login error:', error);
