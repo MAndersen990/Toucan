@@ -66,6 +66,9 @@ function DashboardPage() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Stock | keyof Stock; direction: 'asc' | 'desc' }>({ key: 'ticker', direction: 'asc' });
+
+
   const API_KEY = 'I5jif7iRRz8vBxvOgVZ0Sh9y59oXfAJh'
 
   const getSuggestions = useCallback(
@@ -194,26 +197,61 @@ function DashboardPage() {
     }))
   }
 
-  function toggleStockCheck(ticker: string) {
-    setCheckedStocks(prev => {
-      const newCheckedStocks = prev.includes(ticker)
-        ? prev.filter(t => t !== ticker)
-        : [...prev, ticker]
-      return newCheckedStocks
-    })
-  }
+  // function toggleStockCheck(ticker: string) {
+  //   setCheckedStocks(prev => {
+  //     const newCheckedStocks = prev.includes(ticker)
+  //       ? prev.filter(t => t !== ticker)
+  //       : [...prev, ticker]
+  //     return newCheckedStocks
+  //   })
+  // }
 
-  const deleteStock = (ticker: string) => {
-    setStocks(prevStocks => {
-      const updatedStocks = prevStocks.filter(stock => stock.ticker !== ticker)
-      setCheckedStocks(prev => {
-        const newCheckedStocks = prev.filter(t => t !== ticker)
-        updateChartData(updatedStocks, newCheckedStocks)
-        return newCheckedStocks
-      })
-      return updatedStocks
-    })
-  }
+  // const deleteStock = (ticker: string) => {
+  //   setStocks(prevStocks => {
+  //     const updatedStocks = prevStocks.filter(stock => stock.ticker !== ticker)
+  //     setCheckedStocks(prev => {
+  //       const newCheckedStocks = prev.filter(t => t !== ticker)
+  //       updateChartData(updatedStocks, newCheckedStocks)
+  //       return newCheckedStocks
+  //     })
+  //     return updatedStocks
+  //   })
+  // }
+  const isNumber = (value: string | number[]) => !isNaN(Number(value));
+  const handleSort = (key: keyof Stock) => {
+    let direction: 'asc' | 'desc' = 'desc'; // Default to descending on the first click
+    if (sortConfig.key === key && sortConfig.direction === 'desc') {
+      direction = 'asc'; // Toggle back to ascending if already sorted in descending order
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedStocks = useMemo(() => {
+    if (sortConfig.key) {
+      return [...stocks].sort((a, b) => {
+        const aValue = a[sortConfig.key];
+        const bValue = b[sortConfig.key];
+
+        if (isNumber(aValue) && isNumber(bValue)) {
+          // If sorting numeric columns
+          const aNum = parseFloat(aValue as string);
+          const bNum = parseFloat(bValue as string);
+
+          return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum; // Ascending or descending for numbers
+        } else {
+          // If sorting text columns
+          const aText = (aValue as string).toLowerCase();
+          const bText = (bValue as string).toLowerCase();
+
+          if (sortConfig.direction === 'asc') {
+            return aText < bText ? 1 : -1;
+          }
+          return aText > bText ? 1 : -1; // Ascending or descending for text
+        }
+      });
+    }
+    return stocks;
+  }, [stocks, sortConfig]);
 
   return (
     <div className="flex min-h-screen bg-gray-100">
