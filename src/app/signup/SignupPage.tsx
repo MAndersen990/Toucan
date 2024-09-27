@@ -1,15 +1,47 @@
 'use client'
-import { useState } from "react";
-import Link from 'next/link'
 
-export default function Page() {
-  const [isRemembered, setIsRemembered] = useState(false);
+import { useState, FormEvent } from "react"
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useFirebase } from '../../contexts/FirebaseContext'
+
+export default function SignupPage() {
+  const [isRemembered, setIsRemembered] = useState(false)
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [name, setName] = useState("")
+  const [username, setUsername] = useState("")
+  const [error, setError] = useState("")
+  const router = useRouter()
+  const { signUp } = useFirebase()
 
   // Toggle the checkbox state
   const handleCheckboxClick = () => {
     setIsRemembered(!isRemembered);
   };
 
+  const handleSignUp = async (e: FormEvent) => {
+    e.preventDefault()
+    setError("")
+
+    if (!email || !password || !name || !username) {
+      setError("All fields are required")
+      return
+    }
+
+    try {
+      await signUp(email, password, name, username)
+      router.push('/dashboard')
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError("Failed to create an account. Please try again.")
+      }
+      console.error(err)
+    }
+  }
+  
   return (
     <div className="relative flex min-h-full flex-col justify-center px-4 py-8 sm:px-6 lg:px-8 w-full lg:w-3/5 mx-auto">
       <div className="container mx-auto w-full sm:w-4/5 lg:w-1/2">
@@ -23,6 +55,14 @@ export default function Page() {
         </div>
 
         <div className="text-4xl my-10 text-center lg:text-left">Create Your Account</div>
+
+        {/* Error message */}
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <strong className="font-bold">Error: </strong>
+            <span className="block sm:inline">{error}</span>
+          </div>
+        )}
 
         {/* Flex container for social sign-in buttons */}
         <div className="flex flex-col lg:flex-row items-center justify-between">
@@ -68,64 +108,73 @@ export default function Page() {
         <div className="my-7 text-center lg:text-left">Or sign up using your email address</div>
 
         {/* Flex container for inputs to be placed horizontally */}
-        <div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4 my-4">
-          {/* Username Input */}
-          <div className="w-full lg:w-1/2">
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700">Name</label>
-            <input 
-              type="text" 
-              id="username" 
-              placeholder="Enter your username"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-2xl shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              style={{
-                padding: "16px",
-              }}
-            />
-          </div>
+        <form onSubmit={handleSignUp}>
+          <div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4 my-4">
+            {/* Username Input */}
+            <div className="w-full lg:w-1/2">
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700">Name</label>
+              <input 
+                type="text" 
+                id="name" 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Enter your name"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-2xl shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                style={{
+                  padding: "16px",
+                }}
+              />
+            </div>
 
-          {/* Password Input */}
-          <div className="w-full lg:w-1/2">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">Username</label>
-            <input 
-              type="text" 
-              id="password" 
-              placeholder="Enter your password"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-2xl shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              style={{
-                padding: "16px",
-              }}
-            />
+            {/* Password Input */}
+            <div className="w-full lg:w-1/2">
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700">Username</label>
+              <input 
+                type="text" 
+                id="username" 
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Choose a username"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-2xl shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                style={{
+                  padding: "16px",
+                }}
+              />
+            </div>
           </div>
-        </div>
-        <div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4 my-4">
-          {/* Username Input */}
-          <div className="w-full lg:w-1/2">
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700">Your email</label>
-            <input 
-              type="text" 
-              id="username" 
-              placeholder="Enter your username"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-2xl shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              style={{
-                padding: "16px",
-              }}
-            />
-          </div>
+          <div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4 my-4">
+            {/* Username Input */}
+            <div className="w-full lg:w-1/2">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">Your email</label>
+              <input 
+                type="email" 
+                id="email" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-2xl shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                style={{
+                  padding: "16px",
+                }}
+              />
+            </div>
 
-          {/* Password Input */}
-          <div className="w-full lg:w-1/2">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
-            <input 
-              type="password" 
-              id="password" 
-              placeholder="Enter your password"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-2xl shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              style={{
-                padding: "16px",
-              }}
-            />
+            {/* Password Input */}
+            <div className="w-full lg:w-1/2">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
+              <input 
+                type="password" 
+                id="password" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-2xl shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                style={{
+                  padding: "16px",
+                }}
+              />
+            </div>
           </div>
-        </div>
 
         {/* Flex container for Remember Me and Forgot Password */}
         <div className="flex flex-col lg:flex-row items-center lg:justify-between my-4">
@@ -164,6 +213,7 @@ export default function Page() {
             Sign Up
           </button>
         </div>
+        </form>
       </div>
     </div>
   );

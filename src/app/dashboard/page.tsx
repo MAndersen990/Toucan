@@ -5,8 +5,9 @@ import { Line } from 'react-chartjs-2'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js'
 import { FaThLarge, FaSearch, FaNewspaper, FaLightbulb, FaChartLine, FaWallet, FaEnvelope, FaBell, FaComments, FaCog, FaSignOutAlt } from 'react-icons/fa'
 import axios from 'axios'
-import { subYears, format } from 'date-fns'
+import { format, subMonths } from 'date-fns'
 import debounce from 'lodash/debounce'
+import { useFirebase } from '../../contexts/FirebaseContext'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
 
@@ -53,6 +54,8 @@ interface InsightItemProps {
 }
 
 function DashboardPage() {
+  const { user, logout } = useFirebase()
+  const [userData, setUserData] = useState<{ name: string; watchlist: string[] } | null>(null)
   const [stocks, setStocks] = useState<Stock[]>([])
   const [checkedStocks, setCheckedStocks] = useState<string[]>([])
   const [chartData, setChartData] = useState<ChartData>({
@@ -74,7 +77,7 @@ function DashboardPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false); // Track filter dropdown visibility
   const [filterOptions, setFilterOptions] = useState<string[]>([]);
 
-  const API_KEY = 'I5jif7iRRz8vBxvOgVZ0Sh9y59oXfAJh'
+  const API_KEY = 'uTTgIOsbzexCpY8Smz9olz8SPAOj3ETu'
 
   const getSuggestions = useCallback(
     debounce(async (text: string) => {
@@ -113,8 +116,8 @@ function DashboardPage() {
     setIsLoading(true)
     try {
       const currentDate = new Date()
-      const oneYearAgo = subYears(currentDate, 1)
-      const fromDate = format(oneYearAgo, 'yyyy-MM-dd')
+      const sixMonthsAgo = subMonths(currentDate, 6)
+      const fromDate = format(sixMonthsAgo, 'yyyy-MM-dd')
       const toDate = format(currentDate, 'yyyy-MM-dd')
 
       const fmpResponse = await axios.get(`https://financialmodelingprep.com/api/v3/historical-price-full/${ticker}`, {
@@ -162,6 +165,20 @@ function DashboardPage() {
       setIsLoading(false)
     }
   }
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (user) {
+        // Assuming the FirebaseContext now provides a method to get user data
+        const data = await user.getIdTokenResult()
+        setUserData({
+          name: user.displayName || 'User',
+          watchlist: data.claims.watchlist || []
+        })
+      }
+    }
+    fetchUserData()
+  }, [user])
 
   useEffect(() => {
     // Simulating fetched data
@@ -359,8 +376,9 @@ function DashboardPage() {
         <div className="p-4 mt-auto">
           <div className="flex items-center justify-between">
             <img src="/avatar.png" alt="User" className="w-10 h-10 rounded-full" />
+            <span>{userData?.name}</span>
             <div className="flex">
-              <button className="text-gray-500 hover:text-gray-700 mr-2">
+              <button className="text-gray-500 hover:text-gray-700 mr-2" onClick={() => logout()}>
                 <FaCog />
               </button>
               <button className="text-gray-500 hover:text-gray-700">
@@ -386,14 +404,6 @@ function DashboardPage() {
                 },
               },
             }} />
-          </div>
-          <div className="flex flex-wrap justify-center mt-4">
-            {chartData.datasets.map((dataset, index) => (
-              <div key={index} className="flex items-center mr-4 mb-2">
-                <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: dataset.borderColor }}></div>
-                <span className="text-sm">{dataset.label}</span>
-              </div>
-            ))}
           </div>
         </div>
 
