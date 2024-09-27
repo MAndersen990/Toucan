@@ -31,15 +31,13 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setUser(authUser);
       setLoading(false);
 
-      if (authUser) {
-        router.push('/dashboard');
-      } else {
+      if (!authUser) {
         router.push('/');
       }
     });
 
     return () => unsubscribe();
-  }, [router]);
+  }, []);
 
   const signUp = async (email: string, password: string, name: string, username: string) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
