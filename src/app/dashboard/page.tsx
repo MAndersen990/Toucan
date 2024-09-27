@@ -206,17 +206,17 @@ function DashboardPage() {
   //   })
   // }
 
-  // const deleteStock = (ticker: string) => {
-  //   setStocks(prevStocks => {
-  //     const updatedStocks = prevStocks.filter(stock => stock.ticker !== ticker)
-  //     setCheckedStocks(prev => {
-  //       const newCheckedStocks = prev.filter(t => t !== ticker)
-  //       updateChartData(updatedStocks, newCheckedStocks)
-  //       return newCheckedStocks
-  //     })
-  //     return updatedStocks
-  //   })
-  // }
+  const deleteStock = (ticker: string) => {
+    setStocks(prevStocks => {
+      const updatedStocks = prevStocks.filter(stock => stock.ticker !== ticker)
+      setCheckedStocks(prev => {
+        const newCheckedStocks = prev.filter(t => t !== ticker)
+        updateChartData(updatedStocks, newCheckedStocks)
+        return newCheckedStocks
+      })
+      return updatedStocks
+    })
+  }
   const isNumber = (value: string | number[]) => !isNaN(Number(value));
   const handleSort = (key: keyof Stock) => {
     let direction: 'asc' | 'desc' = 'desc'; // Default to descending on the first click
@@ -469,7 +469,7 @@ function DashboardPage() {
                   <td className="py-2 px-4 text-center">${stock.currentPrice}</td>
                   <td className="py-2 px-4 text-center">
                     <button
-                      onClick={() => setStocks((prev) => prev.filter((s) => s.ticker !== stock.ticker))}
+                       onClick={() => deleteStock(stock.ticker)}
                       className="text-red-500 hover:text-red-700"
                     >
                       🗑️
