@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, ReactNode } from 'react'
+import React, { useState, useEffect, useCallback, ReactNode, useMemo  } from 'react'
 import { Line } from 'react-chartjs-2'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js'
 import { FaThLarge, FaSearch, FaNewspaper, FaLightbulb, FaChartLine, FaWallet, FaEnvelope, FaBell, FaComments, FaCog, FaSignOutAlt } from 'react-icons/fa'
@@ -65,6 +65,7 @@ function DashboardPage() {
   const [search, setSearch] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Stock | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
 
   const API_KEY = 'I5jif7iRRz8vBxvOgVZ0Sh9y59oXfAJh'
 
@@ -214,6 +215,41 @@ function DashboardPage() {
       return updatedStocks
     })
   }
+  const isNumber = (value: string | number) => !isNaN(Number(value));
+  const handleSort = (key: keyof Stock) => {
+    let direction: 'desc' = 'desc'; // Default to descending on the first click
+    if (sortConfig.key === key && sortConfig.direction === 'desc') {
+      direction = 'asc'; // Toggle back to ascending if already sorted in descending order
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedStocks = useMemo(() => {
+    if (sortConfig.key) {
+      return [...stocks].sort((a, b) => {
+        const aValue = a[sortConfig.key];
+        const bValue = b[sortConfig.key];
+
+        if (isNumber(aValue) && isNumber(bValue)) {
+          // If sorting numeric columns
+          const aNum = parseFloat(aValue as string);
+          const bNum = parseFloat(bValue as string);
+
+          return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum; // Ascending or descending for numbers
+        } else {
+          // If sorting text columns
+          const aText = (aValue as string).toLowerCase();
+          const bText = (bValue as string).toLowerCase();
+
+          if (sortConfig.direction === 'asc') {
+            return aText < bText ? 1 : -1;
+          }
+          return aText > bText ? 1 : -1; // Ascending or descending for text
+        }
+      });
+    }
+    return stocks;
+  }, [stocks, sortConfig]);
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -338,28 +374,79 @@ function DashboardPage() {
               <p className="ml-4 text-lg font-semibold">Fetching stock data...</p>
             </div>
           )}
-
-          <table className="w-full">
+<table className="w-full">
             <thead>
               <tr className="bg-gray-100">
-                <th className="py-2 px-4 text-left">Company Name / Ticker</th>
-                <th className="py-2 px-4 text-center">+/- Gain</th>
-                <th className="py-2 px-4 text-center">Rating</th>
-                <th className="py-2 px-4 text-center">Signal</th>
-                <th className="py-2 px-4 text-center">Volatility</th>
-                <th className="py-2 px-4 text-center">Current Price</th>
+                <th
+                  className="py-2 px-4 text-left cursor-pointer"
+                  onClick={() => handleSort('companyName')}
+                >
+                  Company Name / Ticker
+                  <span className="ml-2 w-4 inline-block">
+                    {sortConfig.key === 'companyName' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
+                  </span>
+                </th>
+                <th
+                  className="py-2 px-4 text-center cursor-pointer"
+                  onClick={() => handleSort('percentageChange')}
+                >
+                  +/- Gain
+                  <span className="ml-2 w-4 inline-block">
+                    {sortConfig.key === 'percentageChange' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
+                  </span>
+                </th>
+                <th
+                  className="py-2 px-4 text-center cursor-pointer"
+                  onClick={() => handleSort('finalGrade')}
+                >
+                  Rating
+                  <span className="ml-2 w-4 inline-block">
+                    {sortConfig.key === 'finalGrade' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
+                  </span>
+                </th>
+                <th
+                  className="py-2 px-4 text-center cursor-pointer"
+                  onClick={() => handleSort('recommendation')}
+                >
+                  Signal
+                  <span className="ml-2 w-4 inline-block">
+                    {sortConfig.key === 'recommendation' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
+                  </span>
+                </th>
+                <th
+                  className="py-2 px-4 text-center cursor-pointer"
+                  onClick={() => handleSort('volatilityRating')}
+                >
+                  Volatility
+                  <span className="ml-2 w-4 inline-block">
+                    {sortConfig.key === 'volatilityRating' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
+                  </span>
+                </th>
+                <th
+                  className="py-2 px-4 text-center cursor-pointer"
+                  onClick={() => handleSort('currentPrice')}
+                >
+                  Current Price
+                  <span className="ml-2 w-4 inline-block">
+                    {sortConfig.key === 'currentPrice' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ' '}
+                  </span>
+                </th>
                 <th className="py-2 px-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {stocks.map((stock) => (
+              {sortedStocks.map((stock) => (
                 <tr key={stock.ticker} className="border-b">
                   <td className="py-2 px-4">
                     <div className="flex items-center">
                       <input
                         type="checkbox"
                         checked={checkedStocks.includes(stock.ticker)}
-                        onChange={() => toggleStockCheck(stock.ticker)}
+                        onChange={() =>
+                          setCheckedStocks((prev) =>
+                            prev.includes(stock.ticker) ? prev.filter((t) => t !== stock.ticker) : [...prev, stock.ticker]
+                          )
+                        }
                         className="mr-2"
                       />
                       <div>
@@ -368,7 +455,9 @@ function DashboardPage() {
                       </div>
                     </div>
                   </td>
-                  <td className={`py-2 px-4 text-center ${parseFloat(stock.percentageChange) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  <td
+                    className={`py-2 px-4 text-center ${parseFloat(stock.percentageChange) >= 0 ? 'text-green-500' : 'text-red-500'}`}
+                  >
                     {stock.percentageChange}%
                   </td>
                   <td className="py-2 px-4 text-center">{stock.finalGrade}</td>
@@ -377,7 +466,7 @@ function DashboardPage() {
                   <td className="py-2 px-4 text-center">${stock.currentPrice}</td>
                   <td className="py-2 px-4 text-center">
                     <button
-                      onClick={() => deleteStock(stock.ticker)}
+                      onClick={() => setStocks((prev) => prev.filter((s) => s.ticker !== stock.ticker))}
                       className="text-red-500 hover:text-red-700"
                     >
                       🗑️
