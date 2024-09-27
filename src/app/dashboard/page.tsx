@@ -65,7 +65,7 @@ function DashboardPage() {
   const [search, setSearch] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Stock | null; direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Stock | keyof Stock; direction: 'asc' | 'desc' }>({ key: 'ticker', direction: 'asc' });
 
   const API_KEY = 'I5jif7iRRz8vBxvOgVZ0Sh9y59oXfAJh'
 
@@ -195,29 +195,29 @@ function DashboardPage() {
     }))
   }
 
-  function toggleStockCheck(ticker: string) {
-    setCheckedStocks(prev => {
-      const newCheckedStocks = prev.includes(ticker)
-        ? prev.filter(t => t !== ticker)
-        : [...prev, ticker]
-      return newCheckedStocks
-    })
-  }
+  // function toggleStockCheck(ticker: string) {
+  //   setCheckedStocks(prev => {
+  //     const newCheckedStocks = prev.includes(ticker)
+  //       ? prev.filter(t => t !== ticker)
+  //       : [...prev, ticker]
+  //     return newCheckedStocks
+  //   })
+  // }
 
-  const deleteStock = (ticker: string) => {
-    setStocks(prevStocks => {
-      const updatedStocks = prevStocks.filter(stock => stock.ticker !== ticker)
-      setCheckedStocks(prev => {
-        const newCheckedStocks = prev.filter(t => t !== ticker)
-        updateChartData(updatedStocks, newCheckedStocks)
-        return newCheckedStocks
-      })
-      return updatedStocks
-    })
-  }
-  const isNumber = (value: string | number) => !isNaN(Number(value));
+  // const deleteStock = (ticker: string) => {
+  //   setStocks(prevStocks => {
+  //     const updatedStocks = prevStocks.filter(stock => stock.ticker !== ticker)
+  //     setCheckedStocks(prev => {
+  //       const newCheckedStocks = prev.filter(t => t !== ticker)
+  //       updateChartData(updatedStocks, newCheckedStocks)
+  //       return newCheckedStocks
+  //     })
+  //     return updatedStocks
+  //   })
+  // }
+  const isNumber = (value: string | number[]) => !isNaN(Number(value));
   const handleSort = (key: keyof Stock) => {
-    let direction: 'desc' = 'desc'; // Default to descending on the first click
+    let direction: 'asc' | 'desc' = 'desc'; // Default to descending on the first click
     if (sortConfig.key === key && sortConfig.direction === 'desc') {
       direction = 'asc'; // Toggle back to ascending if already sorted in descending order
     }
