@@ -65,7 +65,7 @@ function DashboardPage() {
   const [search, setSearch] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [isLoading, setIsLoading] = useState(false)
-
+  //config for sort
   const [sortConfig, setSortConfig] = useState<{ key: keyof Stock | keyof Stock; direction: 'asc' | 'desc' }>({ key: 'ticker', direction: 'asc' });
 
 
