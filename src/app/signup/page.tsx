@@ -1,13 +1,12 @@
 import LogoPage from "./logo.js";
-import Page from "./page.js";
+import SignupPage from "./SignupPage";
 
 
 export default function CreateAccount() {
     return (
       <div className="flex min-h-screen">
       <LogoPage></LogoPage>
-      <Page></Page>
+      <SignupPage></SignupPage>
       </div>
     );
   }
-  

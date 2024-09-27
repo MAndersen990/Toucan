@@ -1,13 +1,30 @@
 'use client'
 import { useState } from "react";
 import Link from 'next/link';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../../firebase/firebaseConfig';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const [isRemembered, setIsRemembered] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const router = useRouter();
 
-  // Toggle the checkbox state
   const handleCheckboxClick = () => {
     setIsRemembered(!isRemembered);
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      router.push('/dashboard');
+    } catch (error) {
+      setError('Failed to log in. Please check your credentials.');
+      console.error('Login error:', error);
+    }
   };
 
   return (
@@ -67,80 +84,82 @@ export default function LoginPage() {
 
         <div className="my-7 text-center lg:text-left">Or sign in using your email address</div>
 
-        {/* Flex container for inputs to be placed horizontally */}
-        <div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4 my-4">
-          {/* Username Input */}
-          <div className="w-full lg:w-1/2">
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700">Username</label>
-            <input 
-              type="text" 
-              id="username" 
-              placeholder="Enter your username"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-2xl shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              style={{
-                padding: "16px",
-              }}
-            />
-          </div>
-
-          {/* Password Input */}
-          <div className="w-full lg:w-1/2">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
-            <input 
-              type="password" 
-              id="password" 
-              placeholder="Enter your password"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-2xl shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              style={{
-                padding: "16px",
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Flex container for Remember Me and Forgot Password */}
-        <div className="flex flex-col lg:flex-row items-center lg:justify-between my-4">
-          <div className="flex items-center" onClick={handleCheckboxClick}>
-            <div className="relative flex items-center h-5 cursor-pointer">
-              <div className="w-4 h-4 bg-white border border-gray-300 rounded-md flex items-center justify-center">
-                {isRemembered && (
-                  <svg className="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </div>
-            </div>
-            <label className="ml-2 block text-sm font-medium text-gray-700 cursor-pointer">
-              Remember me
-            </label>
-          </div>
-
-          {/* Forgot Password Link */}
-          <div className="mt-4 lg:mt-0">
-            <a href="#" className="text-sm text-indigo-600 hover:text-indigo-500">
-              Forgot your password?
-            </a>
-          </div>
-        </div>
-
-        {/* Sign In Button */}
-        <div className="mt-10">
-            <Link href="/dashboard">
-              <button
-                type="submit"
-                className="w-full lg:w-1/2 mx-auto py-2 px-4 border border-transparent text-sm font-medium rounded-2xl"
+        <form onSubmit={handleLogin}>
+          <div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4 my-4">
+            <div className="w-full lg:w-1/2">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+              <input 
+                type="email" 
+                id="email" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-2xl shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 style={{
-                  background: "transparent linear-gradient(90deg, #6149CD 0%, #A654AC 47%, #EA5F8B 100%)",
-                  color: "#FFFFFF",
-                  cursor: "pointer",
-                  boxShadow: "3px 16px 40px #695F9724",
-                  padding: "16px"
+                  padding: "16px",
                 }}
-              >
+              />
+            </div>
+
+            <div className="w-full lg:w-1/2">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
+              <input 
+                type="password" 
+                id="password" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-2xl shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                style={{
+                  padding: "16px",
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Flex container for Remember Me and Forgot Password */}
+          <div className="flex flex-col lg:flex-row items-center lg:justify-between my-4">
+            <div className="flex items-center" onClick={handleCheckboxClick}>
+              <div className="relative flex items-center h-5 cursor-pointer">
+                <div className="w-4 h-4 bg-white border border-gray-300 rounded-md flex items-center justify-center">
+                  {isRemembered && (
+                    <svg className="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+              </div>
+              <label className="ml-2 block text-sm font-medium text-gray-700 cursor-pointer">
+                Remember me
+              </label>
+            </div>
+
+            {/* Forgot Password Link */}
+            <div className="mt-4 lg:mt-0">
+              <a href="#" className="text-sm text-indigo-600 hover:text-indigo-500">
+                Forgot your password?
+              </a>
+            </div>
+          </div>
+
+          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+
+          <div className="mt-10">
+            <button
+              type="submit"
+              className="w-full lg:w-1/2 mx-auto py-2 px-4 border border-transparent text-sm font-medium rounded-2xl"
+              style={{
+                background: "transparent linear-gradient(90deg, #6149CD 0%, #A654AC 47%, #EA5F8B 100%)",
+                color: "#FFFFFF",
+                cursor: "pointer",
+                boxShadow: "3px 16px 40px #695F9724",
+                padding: "16px"
+              }}
+            >
               Sign In
             </button>
-          </Link>
-        </div>
+          </div>
+        </form>
       </div>
     </div>
   );

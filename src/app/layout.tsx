@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { FirebaseProvider } from '../contexts/FirebaseContext'
 
 // These styles apply to every route in the application
 import './globals.css'
@@ -19,7 +20,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <FirebaseProvider>
+          {children}
+        </FirebaseProvider>
+      </body>
     </html>
   )
 }

@@ -9,9 +9,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@firebase/app-check": "^0.8.8",
     "axios": "^1.7.7",
     "chart.js": "^4.4.4",
+    "chartjs-adapter-date-fns": "^3.0.0",
     "date-fns": "^4.1.0",
+    "firebase": "^10.13.2",
     "lodash": "^4.17.21",
     "next": "14.2.12",
     "next-auth": "^4.24.7",
