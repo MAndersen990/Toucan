@@ -53,9 +53,16 @@ interface InsightItemProps {
   badgeColor?: string
 }
 
+// Update the type definition for userData if not already defined
+interface UserData {
+  name?: string;
+  watchlist: string[];
+}
+
 function DashboardPage() {
-  const { user, logout } = useFirebase()
-  const [userData, setUserData] = useState<{ name: string; watchlist: string[] } | null>(null)
+  const { user, getUserData, addToWatchlist, removeFromWatchlist, logout } = useFirebase()
+  // Ensure the initial state matches this type
+  const [userData, setUserData] = useState<UserData | null>(null)
   const [stocks, setStocks] = useState<Stock[]>([])
   const [checkedStocks, setCheckedStocks] = useState<string[]>([])
   const [chartData, setChartData] = useState<ChartData>({
@@ -79,36 +86,20 @@ function DashboardPage() {
 
   const API_KEY = 'uTTgIOsbzexCpY8Smz9olz8SPAOj3ETu'
 
-  const getSuggestions = useCallback(
-    debounce(async (text: string) => {
-      if (text.length > 0) {
-        try {
-          const response = await axios.get(`https://financialmodelingprep.com/api/v3/search?query=${text}&limit=10&apikey=${API_KEY}`)
-          const matches = response.data || []
-          setSuggestions(matches.map((match: SearchMatch) => ({
-            ticker: match.symbol,
-            name: match.name
-          })))
-        } catch (error) {
-          console.error('Error fetching suggestions:', error)
+  useEffect(() => {
+    const fetchUserDataAndStocks = async () => {
+      if (user) {
+        const data = await getUserData()
+        setUserData(data)
+        if (data?.watchlist) {
+          for (const ticker of data.watchlist) {
+            await searchStocks(ticker)
+          }
         }
-      } else {
-        setSuggestions([])
       }
-    }, 300),
-    []
-  )
-
-  const handleSearchChange = (text: string) => {
-    setSearch(text)
-    getSuggestions(text)
-  }
-
-  const selectSuggestion = async (item: { ticker: string, name: string }) => {
-    setSearch('')
-    setSuggestions([])
-    await searchStocks(item.ticker)
-  }
+    }
+    fetchUserDataAndStocks()
+  }, [user])
 
   const searchStocks = async (ticker: string) => {
     if (!ticker) return
@@ -149,11 +140,14 @@ function DashboardPage() {
         setStocks(prevStocks => {
           const updatedStocks = prevStocks.some(stock => stock.ticker === newStock.ticker)
             ? prevStocks.map(stock => stock.ticker === newStock.ticker ? newStock : stock)
-            : [newStock, ...prevStocks]
+            : [...prevStocks, newStock]
           
-          const newCheckedStocks = [...new Set([...checkedStocks, newStock.ticker])]
-          setCheckedStocks(newCheckedStocks)
-          updateChartData(updatedStocks, newCheckedStocks)
+          setCheckedStocks(prevCheckedStocks => {
+            // Maintain existing checked stocks and add the new one
+            return [...new Set([...prevCheckedStocks, newStock.ticker])]
+          })
+          
+          updateChartData(updatedStocks, [...new Set([...checkedStocks, newStock.ticker])])
           setFilteredStocks(updatedStocks)
           
           return updatedStocks
@@ -166,38 +160,72 @@ function DashboardPage() {
     }
   }
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (user) {
-        // Assuming the FirebaseContext now provides a method to get user data
-        const data = await user.getIdTokenResult()
-        setUserData({
-          name: user.displayName || 'User',
-          watchlist: data.claims.watchlist as string[] || []
-        })
+  const getSuggestions = useCallback(
+    debounce(async (text: string) => {
+      if (text.length > 0) {
+        try {
+          const response = await axios.get(`https://financialmodelingprep.com/api/v3/search?query=${text}&limit=10&apikey=${API_KEY}`)
+          const matches = response.data || []
+          setSuggestions(matches.map((match: SearchMatch) => ({
+            ticker: match.symbol,
+            name: match.name
+          })))
+        } catch (error) {
+          console.error('Error fetching suggestions:', error)
+        }
+      } else {
+        setSuggestions([])
       }
-    }
-    fetchUserData()
-  }, [user])
+    }, 300),
+    []
+  )
 
-  useEffect(() => {
-    // Simulating fetched data
-    const mockStocks: Stock[] = [
-      {
-        ticker: 'AAPL',
-        companyName: 'Apple Inc.',
-        percentageChange: '2.5',
-        finalGrade: 'A',
-        recommendation: 'Buy',
-        volatilityRating: 'Low',
-        currentPrice: '150.25',
-        historicalPrices: [140, 145, 148, 152, 149, 155, 158, 160, 157, 159, 162, 165],
-      },
-    ]
-    setStocks(mockStocks)
-    setCheckedStocks(mockStocks.map(stock => stock.ticker))
-    setFilteredStocks(mockStocks);
-  }, [])
+  const handleSearchChange = (text: string) => {
+    setSearch(text)
+    getSuggestions(text)
+  }
+
+  const selectSuggestion = async (item: { ticker: string, name: string }) => {
+    setSearch('')
+    setSuggestions([])
+    
+    if (user) {
+      try {
+        // Check if the ticker is already in the watchlist
+        if (userData?.watchlist.includes(item.ticker)) {
+          console.log(`${item.ticker} is already in the watchlist`)
+          // Optionally, show a message to the user
+          return
+        }
+
+        await addToWatchlist(item.ticker)
+        console.log(`Added ${item.ticker} to watchlist`)
+        // Update the local userData state
+        setUserData(prevData => {
+          if (!prevData) {
+            // Handle the case where prevData is null
+            return {
+              watchlist: [item.ticker],
+              name: undefined, // or provide a default value if necessary
+              // Add other required properties of UserData with default values
+            }
+          }
+          return {
+            ...prevData,
+            watchlist: [...prevData.watchlist, item.ticker]
+          }
+        })
+        // Fetch and add the new stock data
+        await searchStocks(item.ticker)
+      } catch (error) {
+        console.error('Error adding to watchlist:', error)
+        // Optionally, show an error message to the user
+      }
+    } else {
+      console.log('User not logged in. Unable to add to watchlist.')
+      // Optionally, show a message to the user prompting them to log in
+    }
+  }
 
   useEffect(() => {
     updateChartData(stocks, checkedStocks)
@@ -230,18 +258,32 @@ function DashboardPage() {
     })
   }
 
-  const deleteStock = (ticker: string) => {
-    setStocks(prevStocks => {
-      const updatedStocks = prevStocks.filter(stock => stock.ticker !== ticker)
-      setCheckedStocks(prev => {
-        const newCheckedStocks = prev.filter(t => t !== ticker)
-        updateChartData(updatedStocks, newCheckedStocks)
-        setFilteredStocks(updatedStocks)
-        return newCheckedStocks
-      })
-      return updatedStocks
-    })
-  }
+  const deleteStock = async (ticker: string) => {
+    try {
+      await removeFromWatchlist(ticker);
+      setStocks(prevStocks => {
+        const updatedStocks = prevStocks.filter(stock => stock.ticker !== ticker);
+        setCheckedStocks(prev => {
+          const newCheckedStocks = prev.filter(t => t !== ticker);
+          updateChartData(updatedStocks, newCheckedStocks);
+          setFilteredStocks(updatedStocks);
+          return newCheckedStocks;
+        });
+        return updatedStocks;
+      });
+      // Update the local userData state
+      setUserData(prevData => {
+        if (!prevData) return null; // Handle the case where prevData is null
+        return {
+          ...prevData,
+          watchlist: prevData.watchlist.filter(item => item !== ticker)
+        };
+      });
+    } catch (error) {
+      console.error('Error removing stock from watchlist:', error);
+      // Optionally, show an error message to the user
+    }
+  };
   
   const handleSort = (key: keyof Stock) => {
     let direction: 'asc' | 'desc' = 'desc'; // Default to descending on the first click
