@@ -1,6 +1,6 @@
 "use client"
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { signInWithEmailAndPassword, signOut, User } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, User, sendPasswordResetEmail } from 'firebase/auth';
 import { auth, createUserWithEmailAndPassword, db } from '../firebase/firebaseConfig';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
@@ -22,6 +22,7 @@ interface FirebaseContextType {
   refreshUserData: () => Promise<UserData | null>;
   addToWatchlist: (ticker: string) => Promise<void>;
   removeFromWatchlist: (ticker: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const FirebaseContext = createContext<FirebaseContextType | undefined>(undefined);
@@ -125,6 +126,10 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }
 
+  const resetPassword = async (email: string) => {
+    await sendPasswordResetEmail(auth, email)
+  };
+
   const value = {
     user,
     userData,
@@ -135,7 +140,8 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     getUserData,
     refreshUserData,
     addToWatchlist,
-    removeFromWatchlist
+    removeFromWatchlist,
+    resetPassword
   };
 
   return (
