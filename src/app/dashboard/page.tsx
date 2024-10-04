@@ -76,7 +76,7 @@ function DashboardPage() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [isLoading, setIsLoading] = useState(false)
   
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Stock | keyof Stock; direction: 'asc' | 'desc' }>({ key: 'ticker', direction: 'asc' });
+  const [sortConfig] = useState<{ key: keyof Stock | keyof Stock; direction: 'asc' | 'desc' }>({ key: 'ticker', direction: 'asc' });
 
   const [filteredStocks, setFilteredStocks] = useState<Stock[]>([]); // To store filtered data
   const [filterType, setFilterType] = useState(''); // For tracking filter type (Volatility, Rating, Signal)
@@ -287,13 +287,13 @@ function DashboardPage() {
     }
   };
   
-  const handleSort = (key: keyof Stock) => {
-    let direction: 'asc' | 'desc' = 'desc'; // Default to descending on the first click
-    if (sortConfig.key === key && sortConfig.direction === 'desc') {
-      direction = 'asc'; // Toggle back to ascending if already sorted in descending order
-    }
-    setSortConfig({ key, direction });
-  };
+  // const handleSort = (key: keyof Stock) => {
+  //   let direction: 'asc' | 'desc' = 'desc'; // Default to descending on the first click
+  //   if (sortConfig.key === key && sortConfig.direction === 'desc') {
+  //     direction = 'asc'; // Toggle back to ascending if already sorted in descending order
+  //   }
+  //   setSortConfig({ key, direction });
+  // };
 
   const sortedStocks = useMemo(() => {
     if (sortConfig.key) {
