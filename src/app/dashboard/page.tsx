@@ -3,9 +3,8 @@
 import React, { useState, useEffect, useCallback, ReactNode, useMemo } from 'react'
 import { Line } from 'react-chartjs-2'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js'
-import { FaThLarge, FaSearch, FaNewspaper, FaLightbulb, FaChartLine, FaWallet, FaEnvelope, FaBell, FaComments, FaCog, FaSignOutAlt, FaBars } from 'react-icons/fa'
+import { FaThLarge, FaChartLine, FaWallet, FaEnvelope, FaBell, FaCog, FaSignOutAlt, FaBars, FaUser, FaArrowRight, FaTimes } from 'react-icons/fa'
 import axios from 'axios'
-import { format, subMonths } from 'date-fns'
 import debounce from 'lodash/debounce'
 import { useFirebase } from '../../contexts/FirebaseContext'
 
@@ -20,6 +19,12 @@ interface Stock {
   volatilityRating: string
   currentPrice: string
   historicalPrices: number[]
+  peRatio: number
+  pbRatio: number
+  roe: number
+  epsGrowth: number
+  deRatio: number
+  volatilityPercentage: number
 }
 
 interface SearchMatch {
@@ -55,8 +60,35 @@ interface InsightItemProps {
 
 // Update the type definition for userData if not already defined
 interface UserData {
-  name?: string;
-  watchlist: string[];
+  name: string
+  watchlist: string[]
+  joinedDate?: string | number
+  portfolioValue?: number
+  portfolioGainLoss?: number
+  numberOfStocks?: number
+  cashBalance?: number
+  recentActivity?: Array<{
+    action: string;
+    details: string;
+    date: string;
+  }>;
+}
+
+interface UserProfileData {
+  name: string;
+  email: string;
+  memberSince: string;
+  portfolio: {
+    totalValue: number;
+    totalGainLoss: number;
+    numberOfStocks: number;
+    cashBalance: number;
+  };
+  recentActivity: Array<{
+    action: string;
+    details: string;
+    date: string;
+  }>;
 }
 
 function DashboardPage() {
@@ -73,12 +105,11 @@ function DashboardPage() {
   const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
 
   const [search, setSearch] = useState('')
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [isLoading, setIsLoading] = useState(false)
   
   const [sortConfig] = useState<{ key: keyof Stock | keyof Stock; direction: 'asc' | 'desc' }>({ key: 'ticker', direction: 'asc' });
 
-  const [filteredStocks, setFilteredStocks] = useState<Stock[]>([]); // To store filtered data
+  const [filteredStocks, setFilteredStocks] = useState<Stock[]>(stocks); // To store filtered data
   const [filterType, setFilterType] = useState(''); // For tracking filter type (Volatility, Rating, Signal)
   const [filterValue, setFilterValue] = useState(''); // For tracking the filter value
   const [isFilterOpen, setIsFilterOpen] = useState(false); // Track filter dropdown visibility
@@ -88,15 +119,23 @@ function DashboardPage() {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
+  const [profileData, setProfileData] = useState<UserProfileData | null>(null);
+
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([])
+
   useEffect(() => {
     const fetchUserDataAndStocks = async () => {
       if (user) {
         const data = await getUserData()
-        setUserData(data)
+        setUserData(data as UserData) // Add type assertion here
         if (data?.watchlist) {
+          const newCheckedStocks: string[] = []
           for (const ticker of data.watchlist) {
             await searchStocks(ticker)
+            newCheckedStocks.push(ticker)
           }
+          setCheckedStocks(newCheckedStocks)
         }
       }
     }
@@ -108,124 +147,55 @@ function DashboardPage() {
     
     setIsLoading(true)
     try {
-      const currentDate = new Date()
-      const sixMonthsAgo = subMonths(currentDate, 6)
-      const fromDate = format(sixMonthsAgo, 'yyyy-MM-dd')
-      const toDate = format(currentDate, 'yyyy-MM-dd')
-
-      const fmpResponse = await axios.get(`https://financialmodelingprep.com/api/v3/historical-price-full/${ticker}`, {
-        params: {
-          from: fromDate,
-          to: toDate,
-          apikey: API_KEY
-        }
-      })
-
-      const historicalData = fmpResponse.data.historical
-
-      // Fetch analysis data from Firebase function
       const firebaseResponse = await axios.get(`https://us-central1-alphaorbit-2cf88.cloudfunctions.net/analyzeStocks?tickers=${ticker.toUpperCase()}`)
-      const analysisData = firebaseResponse.data.stockData[0]
+      console.log(firebaseResponse.data)
+      
+      const stockData = firebaseResponse.data.data[0] // The first (and only) item in the data array
+      const historicalPrices = firebaseResponse.data.stock_data[ticker.toUpperCase()]
 
-      if (historicalData && historicalData.length > 0 && analysisData) {
+      if (stockData && historicalPrices) {
         const newStock: Stock = {
-          ticker: analysisData.ticker,
-          companyName: analysisData.company_name,
-          percentageChange: Number(analysisData.percentage_change).toFixed(2),
-          finalGrade: analysisData.final_grade,
-          recommendation: analysisData.recommendation,
-          volatilityRating: analysisData.volatility_rating,
-          currentPrice: Number(analysisData.current_price).toFixed(2),
-          historicalPrices: historicalData.map((day: { close: number }) => day.close).reverse()
+          ticker: stockData.ticker,
+          companyName: stockData.company_name,
+          percentageChange: Number(firebaseResponse.data.overall_gain).toFixed(2),
+          finalGrade: stockData.final_grade,
+          recommendation: stockData.recommendation,
+          volatilityRating: stockData.volatility_rating,
+          currentPrice: Number(stockData.current_price).toFixed(2),
+          historicalPrices: historicalPrices,
+          // Add any additional fields you want to include
+          peRatio: stockData.analysis.pe_ratio,
+          pbRatio: stockData.analysis.pb_ratio,
+          roe: stockData.analysis.roe,
+          epsGrowth: stockData.analysis.eps_growth,
+          deRatio: stockData.analysis.de_ratio,
+          volatilityPercentage: stockData.volatility_percentage
         }
 
         setStocks(prevStocks => {
-          const updatedStocks = prevStocks.some(stock => stock.ticker === newStock.ticker)
-            ? prevStocks.map(stock => stock.ticker === newStock.ticker ? newStock : stock)
-            : [...prevStocks, newStock]
-          
-          setCheckedStocks(prevCheckedStocks => {
-            // Maintain existing checked stocks and add the new one
-            return [...new Set([...prevCheckedStocks, newStock.ticker])]
-          })
-          
-          updateChartData(updatedStocks, [...new Set([...checkedStocks, newStock.ticker])])
-          setFilteredStocks(updatedStocks)
-          
-          return updatedStocks
-        })
+          // Check if the stock already exists
+          const stockExists = prevStocks.some(stock => stock.ticker === newStock.ticker);
+          if (stockExists) {
+            // If it exists, update it
+            const updatedStocks = prevStocks.map(stock => 
+              stock.ticker === newStock.ticker ? newStock : stock
+            );
+            setFilteredStocks(updatedStocks);
+            return updatedStocks;
+          } else {
+            // If it doesn't exist, add it
+            const updatedStocks = [...prevStocks, newStock];
+            setFilteredStocks(updatedStocks);
+            return updatedStocks;
+          }
+        });
+      } else {
+        console.error('Invalid stock data received')
       }
     } catch (error) {
       console.error('Error fetching stock data:', error)
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const getSuggestions = useCallback(
-    debounce(async (text: string) => {
-      if (text.length > 0) {
-        try {
-          const response = await axios.get(`https://financialmodelingprep.com/api/v3/search?query=${text}&limit=10&apikey=${API_KEY}`)
-          const matches = response.data || []
-          setSuggestions(matches.map((match: SearchMatch) => ({
-            ticker: match.symbol,
-            name: match.name
-          })))
-        } catch (error) {
-          console.error('Error fetching suggestions:', error)
-        }
-      } else {
-        setSuggestions([])
-      }
-    }, 300),
-    []
-  )
-
-  const handleSearchChange = (text: string) => {
-    setSearch(text)
-    getSuggestions(text)
-  }
-
-  const selectSuggestion = async (item: { ticker: string, name: string }) => {
-    setSearch('')
-    setSuggestions([])
-    
-    if (user) {
-      try {
-        // Check if the ticker is already in the watchlist
-        if (userData?.watchlist.includes(item.ticker)) {
-          console.log(`${item.ticker} is already in the watchlist`)
-          // Optionally, show a message to the user
-          return
-        }
-
-        await addToWatchlist(item.ticker)
-        console.log(`Added ${item.ticker} to watchlist`)
-        // Update the local userData state
-        setUserData(prevData => {
-          if (!prevData) {
-            // Handle the case where prevData is null
-            return {
-              watchlist: [item.ticker],
-              name: undefined, // or provide a default value if necessary
-              // Add other required properties of UserData with default values
-            }
-          }
-          return {
-            ...prevData,
-            watchlist: [...prevData.watchlist, item.ticker]
-          }
-        })
-        // Fetch and add the new stock data
-        await searchStocks(item.ticker)
-      } catch (error) {
-        console.error('Error adding to watchlist:', error)
-        // Optionally, show an error message to the user
-      }
-    } else {
-      console.log('User not logged in. Unable to add to watchlist.')
-      // Optionally, show a message to the user prompting them to log in
     }
   }
 
@@ -296,8 +266,9 @@ function DashboardPage() {
   // };
 
   const sortedStocks = useMemo(() => {
+    const stocksToSort = filteredStocks.length > 0 ? filteredStocks : stocks;
     if (sortConfig.key) {
-      return [...filteredStocks].sort((a, b) => {
+      return [...stocksToSort].sort((a, b) => {
         const aValue = a[sortConfig.key];
         const bValue = b[sortConfig.key];
 
@@ -314,8 +285,8 @@ function DashboardPage() {
           : String(bValue).localeCompare(String(aValue));
       });
     }
-    return filteredStocks;
-  }, [filteredStocks, sortConfig]);
+    return stocksToSort;
+  }, [filteredStocks, stocks, sortConfig]);
 
   const handleFilter = () => {
     if (!filterType || !filterValue) return; // No filtering if type or value is missing
@@ -370,15 +341,129 @@ function DashboardPage() {
     }
   }, [filterType, stocks]);
 
+  const fetchProfileData = async () => {
+    if (!user) {
+      console.error('No user logged in');
+      return;
+    }
+
+    try {
+
+      if (userData) {
+        // Process the data to match the UserProfileData interface
+        const profileData: UserProfileData = {
+          name: userData.name || 'N/A',
+          email: user.email || 'N/A',
+          memberSince: userData.joinedDate ? new Date(userData.joinedDate).toLocaleDateString() : 'N/A',
+          portfolio: {
+            totalValue: userData.portfolioValue || Math.random()*100,
+					totalGainLoss: userData.portfolioGainLoss || Math.random()*100,
+					numberOfStocks: userData.numberOfStocks || Math.round(Math.random()*10),
+					cashBalance: userData.cashBalance || Math.random()*100,
+				},
+				recentActivity: userData.recentActivity || [
+					{ action: "Bought", details: "100 shares of AAPL", date: "2023-06-01" },
+					{ action: "Sold", details: "50 shares of GOOGL", date: "2023-05-28" },
+					{ action: "Dividend", details: "Received $100 from MSFT", date: "2023-05-15" },
+				],
+        };
+
+        setProfileData(profileData);
+      } else {
+        console.error('User data not found');
+      }
+    } catch (error) {
+      console.error('Error fetching profile data:', error);
+      // Optionally, show an error message to the user
+    }
+  };
+
+  useEffect(() => {
+    setFilteredStocks(stocks);
+  }, [stocks]);
+
+  const getSuggestions = useCallback(
+    debounce(async (text: string) => {
+      if (text.length > 0) {
+        try {
+          const response = await axios.get(`https://financialmodelingprep.com/api/v3/search?query=${text}&limit=10&apikey=${API_KEY}`)
+          const matches = response.data || []
+          setSuggestions(matches.map((match: SearchMatch) => ({
+            ticker: match.symbol,
+            name: match.name
+          })))
+        } catch (error) {
+          console.error('Error fetching suggestions:', error)
+        }
+      } else {
+        setSuggestions([])
+      }
+    }, 300),
+    []
+  )
+
+  const handleSearchChange = (text: string) => {
+    setSearch(text)
+    getSuggestions(text)
+  }
+
+  const selectSuggestion = async (item: { ticker: string, name: string }) => {
+    setSearch('')
+    setSuggestions([])
+    
+    if (user) {
+      try {
+        // Check if the ticker is already in the watchlist
+        if (userData?.watchlist.includes(item.ticker)) {
+          console.log(`${item.ticker} is already in the watchlist`)
+          // Optionally, show a message to the user
+          return
+        }
+
+        await addToWatchlist(item.ticker)
+        console.log(`Added ${item.ticker} to watchlist`)
+        // Update the local userData state
+        setUserData(prevData => {
+          if (!prevData) {
+            return {
+              watchlist: [item.ticker],
+              name: '',
+              joinedDate: new Date().toISOString(),
+              portfolioValue: 0,
+              portfolioGainLoss: 0,
+              numberOfStocks: 0,
+              cashBalance: 0,
+              recentActivity: []
+            }
+          }
+          return {
+            ...prevData,
+            watchlist: [...prevData.watchlist, item.ticker]
+          }
+        })
+        // Fetch and add the new stock data
+        await searchStocks(item.ticker)
+        // Automatically check the new stock
+        setCheckedStocks(prev => [...prev, item.ticker])
+      } catch (error) {
+        console.error('Error adding to watchlist:', error)
+        // Optionally, show an error message to the user
+      }
+    } else {
+      console.log('User not logged in. Unable to add to watchlist.')
+      // Optionally, show a message to the user prompting them to log in
+    }
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-100">
       {/* Mobile Header */}
-      <header className="bg-white shadow-md p-4 flex justify-between items-center lg:hidden">
+      <header className="lg:hidden bg-white shadow-md p-4 flex justify-between items-center">
         <div className="flex items-center">
           <img src="./AlphaOrbit.png" alt="AlphaOrbit" className="w-8 h-8 mr-2" />
           <span className="text-xl font-bold">AlphaOrbit</span>
         </div>
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-gray-500">
+        <button onClick={() => setIsMobileMenuOpen(true)} className="text-gray-600">
           <FaBars size={24} />
         </button>
       </header>
@@ -386,32 +471,54 @@ function DashboardPage() {
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 bg-gray-800 bg-opacity-75 z-50 lg:hidden">
-          <div className="bg-white h-full w-64 p-4">
+          <div className="bg-white h-full w-64 p-4 overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
-              <span className="text-xl font-bold">Menu</span>
+              <div className="flex items-center">
+                <img src="./AlphaOrbit.png" alt="AlphaOrbit" className="w-8 h-8 mr-2" />
+                <span className="text-xl font-bold">AlphaOrbit</span>
+              </div>
               <button onClick={() => setIsMobileMenuOpen(false)} className="text-gray-500">
-                &times;
+                <FaTimes size={24} />
               </button>
             </div>
             <nav className="mb-6">
               <MobileNavItem icon={<FaThLarge />} text="Dashboard" active />
-              <MobileNavItem icon={<FaSearch />} text="Research" />
-              <MobileNavItem icon={<FaNewspaper />} text="News" />
-              <MobileNavItem icon={<FaLightbulb />} text="Strategy" />
               <MobileNavItem icon={<FaChartLine />} text="Portfolio" />
               <MobileNavItem icon={<FaWallet />} text="Wallet" />
+              <MobileNavItem 
+                icon={<FaUser />} 
+                text="Profile" 
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  fetchProfileData();
+                  setIsProfileModalOpen(true);
+                }} 
+              />
             </nav>
             <div className="border-t pt-4">
-              <h3 className="text-sm font-semibold text-gray-500 mb-2">Insights</h3>
-              <MobileInsightItem icon={<FaEnvelope />} text="Messages" badge={12} />
-              <MobileInsightItem icon={<FaBell />} text="Notifications" badge={6} />
-              <MobileInsightItem icon={<FaComments />} text="Chat" badge={6} />
+              <h3 className="text-sm font-semibold text-gray-500 mb-2">Featured Portfolios</h3>
+              <div className="bg-gray-100 rounded-lg p-3 mb-3">
+                <h4 className="font-semibold">Battery Tech</h4>
+                <p className="text-sm text-gray-600">By Stock Guys Inc.</p>
+                <p className="text-sm text-orange-500">Moderate</p>
+              </div>
+              <button className="w-full bg-gradient-to-r from-green-400 to-blue-500 text-white font-semibold py-2 px-4 rounded">
+                Shop Portfolios
+              </button>
+            </div>
+            <div className="mt-6">
+              <button onClick={() => {
+                setIsMobileMenuOpen(false);
+                logout();
+              }} className="w-full bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                Logout
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="flex flex-1">
+      <div className="flex flex-1 flex-col lg:flex-row">
         {/* Sidebar (hidden on mobile) */}
         <aside className="hidden lg:block lg:w-64 bg-white shadow-md h-screen sticky top-0 overflow-y-auto">
           <div className="p-4">
@@ -421,40 +528,31 @@ function DashboardPage() {
             </div>
             <nav>
               <NavItem icon={<FaThLarge />} text="Dashboard" active />
-              <NavItem icon={<FaSearch />} text="Research" />
-              <NavItem icon={<FaNewspaper />} text="News" />
-              <NavItem icon={<FaLightbulb />} text="Strategy" />
               <NavItem icon={<FaChartLine />} text="Portfolio" />
               <NavItem icon={<FaWallet />} text="Wallet" />
+              <NavItem 
+                icon={<FaUser />} 
+                text="Profile" 
+                onClick={() => {
+                  fetchProfileData();
+                  setIsProfileModalOpen(true);
+                }} 
+              />
             </nav>
           </div>
           <div className="p-4 border-t">
             <h3 className="text-sm font-semibold text-gray-500 mb-2">Insights</h3>
             <InsightItem icon={<FaEnvelope />} text="Messages" badge={12} badgeColor="red" />
             <InsightItem icon={<FaBell />} text="Notifications" badge={6} badgeColor="gray" />
-            <InsightItem icon={<FaComments />} text="Chat" badge={6} badgeColor="red" />
           </div>
-          <div className="p-4 bg-pink-100 mx-4 rounded-3xl">
-            <h3 className="text-sm font-semibold mb-2">All Portfolio Activity</h3>
-            <div className="flex justify-between items-center mb-2">
-              <div>
-                <p className="text-3xl font-bold">350</p>
-                <p className="text-xs text-gray-500">Total Stocks</p>
-              </div>
-              <div className="bg-green-500 text-white text-xs px-2 py-1 rounded">
-                +7% this Week
-              </div>
+          <div className="flex bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl overflow-hidden w-3/4 p-5 m-auto">
+            <div className="w-1/3">
+              <img src="./premium-icon.png" alt="Portfolio" className="object-cover w-full h-full" />
             </div>
-            <p className="text-xs text-gray-500 mb-2">Last Trade: 8/20/24</p>
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-lg font-semibold">$2,300</p>
-                <p className="text-xs text-gray-500">Amount Invested</p>
-              </div>
-              <div className="bg-green-500 text-white text-xs px-2 py-1 rounded">
-                <p className="font-bold">+32%</p>
-                <p>All Time</p>
-              </div>
+            <div className='text-white'>
+              Get 3 Free Months Of Pro!
+              <br></br>
+              <span>Get Pro Now! <FaArrowRight /></span>
             </div>
           </div>
           <div className="p-4 mt-auto">
@@ -477,7 +575,7 @@ function DashboardPage() {
         <main className="flex-1 p-4 lg:p-8 overflow-x-hidden">
           <div className="max-w-6xl mx-auto">
             <div className="bg-white rounded-lg shadow p-4 lg:p-6 mb-4 lg:mb-8">
-              <h2 className="text-2xl font-bold mb-2">Watchlist</h2>
+              <h2 className="text-xl lg:text-2xl font-bold mb-2">Watchlist</h2>
               <p className="text-green-500 font-semibold mb-4">+48% Today</p>
               <div className="h-64 lg:h-96 overflow-x-auto">
                 <div className="min-w-[600px] h-full">
@@ -496,14 +594,14 @@ function DashboardPage() {
 
             <div className="bg-white rounded-lg shadow p-4 lg:p-6 relative">
               {/* Search and filter section */}
-              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-4">
-                <div className="relative w-full lg:max-w-md mb-4 lg:mb-0">
+              <div className="flex flex-col lg:flex-row justify-between mb-4">
+                <div className="mb-4 lg:mb-0 lg:mr-4 flex-grow relative">
                   <input
                     type="text"
                     placeholder="Search Company or Ticker(s)"
-                    className="border rounded px-3 py-2 w-full"
+                    className="w-full p-2 border rounded"
                     value={search}
-                    onChange={(e) => {handleSearchChange(e.target.value); setFilterValue(e.target.value);}}
+                    onChange={(e) => handleSearchChange(e.target.value)}
                   />
                   {suggestions.length > 0 && (
                     <div className="absolute z-20 w-full bg-white border border-gray-200 mt-1 rounded-md shadow-lg max-h-60 overflow-auto">
@@ -590,7 +688,7 @@ function DashboardPage() {
 
               {/* Table */}
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[600px]">
+                <table className="w-full">
                   {/* Table header */}
                   <thead>
                     <tr className="bg-gray-100">
@@ -658,21 +756,103 @@ function DashboardPage() {
           </button>
         </aside>
       </div>
+
+      {/* Profile Modal */}
+      {isProfileModalOpen && profileData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
+          <div className="bg-white rounded-lg p-4 lg:p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl lg:text-2xl font-bold">Profile</h2>
+              <button onClick={() => setIsProfileModalOpen(false)} className="text-gray-500 hover:text-gray-700">
+                <FaTimes size={24} />
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Left Column */}
+              <div className="lg:col-span-1">
+                <div className="bg-white rounded-lg shadow p-6 mb-6">
+                  <img src="/avatar.png" alt="User Avatar" className="w-32 h-32 rounded-full mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-center mb-2">{profileData.name}</h3>
+                  <p className="text-gray-600 text-center mb-4">{profileData.email}</p>
+                  <p className="text-gray-600 text-center text-sm">Member since: {profileData.memberSince}</p>
+                </div>
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h4 className="font-semibold mb-4">Account Settings</h4>
+                  <ul className="space-y-2">
+                    <li><a href="#" className="text-blue-600 hover:underline">Change Password</a></li>
+                    <li><a href="#" className="text-blue-600 hover:underline">Notification Preferences</a></li>
+                    <li><a href="#" className="text-blue-600 hover:underline">Privacy Settings</a></li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Middle Column */}
+              <div className="lg:col-span-2">
+                <div className="bg-white rounded-lg shadow p-6 mb-6">
+                  <h4 className="font-semibold mb-4">Portfolio Summary</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-gray-600">Total Value</p>
+                      <p className="text-2xl font-bold">${profileData.portfolio.totalValue.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">Total Gain/Loss</p>
+                      <p className={`text-2xl font-bold ${profileData.portfolio.totalGainLoss >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        ${Math.abs(profileData.portfolio.totalGainLoss).toFixed(2)} 
+                        ({((profileData.portfolio.totalGainLoss / profileData.portfolio.totalValue) * 100).toFixed(2)}%)
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">Number of Stocks</p>
+                      <p className="text-2xl font-bold">{profileData.portfolio.numberOfStocks}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">Cash Balance</p>
+                      <p className="text-2xl font-bold">${profileData.portfolio.cashBalance.toFixed(2)}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg shadow p-6 mb-6">
+                  <h4 className="font-semibold mb-4">Recent Activity</h4>
+                  <ul className="space-y-4">
+                    {profileData.recentActivity.map((activity, index) => (
+                      <li key={index} className="flex justify-between items-center">
+                        <div>
+                          <p className="font-semibold">{activity.action}</p>
+                          <p className="text-sm text-gray-600">{activity.details}</p>
+                        </div>
+                        <p className="text-sm text-gray-600">{activity.date}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 flex justify-end">
+              <button onClick={() => logout()} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-function NavItem({ icon, text, active = false }: { icon: ReactNode; text: string; active?: boolean }) {
+function NavItem({ icon, text, active = false, onClick }: { icon: ReactNode; text: string; active?: boolean; onClick?: () => void }) {
   return (
-    <a
-      href="#"
-      className={`flex items-center py-2 px-4 rounded-lg mb-1 ${
+    <button
+      onClick={onClick}
+      className={`flex items-center py-2 px-4 rounded-lg mb-1 w-full text-left ${
         active ? 'bg-purple-600 text-white' : 'text-gray-600 hover:bg-gray-100'
       }`}
     >
       <span className="mr-3">{icon}</span>
       <span>{text}</span>
-    </a>
+    </button>
   )
 }
 
@@ -690,33 +870,17 @@ function InsightItem({ icon, text, badge, badgeColor }: InsightItemProps) {
   )
 }
 
-function MobileNavItem({ icon, text, active = false }: { icon: ReactNode; text: string; active?: boolean }) {
+function MobileNavItem({ icon, text, active = false, onClick }: { icon: ReactNode; text: string; active?: boolean; onClick?: () => void }) {
   return (
-    <a
-      href="#"
-      className={`flex items-center py-2 px-4 rounded-lg mb-1 ${
+    <button
+      onClick={onClick}
+      className={`flex items-center py-2 px-4 rounded-lg mb-1 w-full text-left ${
         active ? 'bg-purple-600 text-white' : 'text-gray-600 hover:bg-gray-100'
       }`}
     >
       <span className="mr-3">{icon}</span>
       <span>{text}</span>
-    </a>
-  )
-}
-
-function MobileInsightItem({ icon, text, badge }: { icon: ReactNode; text: string; badge?: number }) {
-  return (
-    <div className="flex items-center justify-between py-2">
-      <div className="flex items-center">
-        <span className="mr-3 text-gray-500">{icon}</span>
-        <span className="text-gray-700">{text}</span>
-      </div>
-      {badge && (
-        <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-          {badge}
-        </span>
-      )}
-    </div>
+    </button>
   )
 }
 

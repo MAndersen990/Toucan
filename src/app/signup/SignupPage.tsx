@@ -189,7 +189,7 @@ export default function SignupPage() {
               </div>
             </div>
             <label className="ml-2 block text-sm font-medium text-gray-700 cursor-pointer">
-              I accept thhe <a className="text-sm text-indigo-600 hover:text-indigo-500">Terms and Conditions</a>
+              I accept the <a className="text-sm text-indigo-600 hover:text-indigo-500">Terms and Conditions</a>
             </label>
           </div>
 

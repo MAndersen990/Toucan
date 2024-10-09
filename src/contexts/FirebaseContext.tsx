@@ -1,28 +1,31 @@
 "use client"
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { signInWithEmailAndPassword, signOut, User, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, User, sendPasswordResetEmail, updateProfile, updateEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { auth, createUserWithEmailAndPassword, db } from '../firebase/firebaseConfig';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 
 interface UserData {
   name: string
   watchlist: string[]
+  joinedDate: string
 }
 
-// Update the interface to include userData and refreshUserData
 interface FirebaseContextType {
   user: User | null;
-  userData: { name: string; watchlist: string[] } | null;
+  userData: { name: string; watchlist: string[], joinedDate: string } | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<User>;
   signUp: (email: string, password: string, name: string, username: string) => Promise<void>;
   logout: () => Promise<void>;
-  getUserData: () => Promise<{ name: string; watchlist: string[] } | null>;
+  getUserData: () => Promise<UserData | null>;
   refreshUserData: () => Promise<UserData | null>;
   addToWatchlist: (ticker: string) => Promise<void>;
   removeFromWatchlist: (ticker: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  updateUserProfile: (newName: string) => Promise<void>;
+  updateUserEmail: (newEmail: string, password: string) => Promise<void>;
+  deleteAccount: (password: string) => Promise<void>;
 }
 
 const FirebaseContext = createContext<FirebaseContextType | undefined>(undefined);
@@ -37,7 +40,7 @@ export const useFirebase = () => {
 
 export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [userData, setUserData] = useState<{ name: string; watchlist: string[] } | null>(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -56,10 +59,17 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const signUp = async (email: string, password: string, name: string, username: string) => {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    // Here you would typically also save the name and username to your user profile in the database
-    // For example:
-    await setDoc(doc(db, 'users', userCredential.user.uid), { name, username });
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        name,
+        username,
+        email,
+        joinedDate: serverTimestamp()
+      });
+    } catch (error) {
+      console.error("Error during signup:", error);
+    }
   };
 
   const login = async (email: string, password: string) => {
@@ -77,26 +87,36 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  const getUserData = async () => {
-    if (userData) {
-      return userData;
+  const getUserData = useCallback(async (): Promise<UserData | null> => {
+    if (!user) return null;
+    
+    try {
+      const docRef = doc(db, 'users', user.uid);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        const data = docSnap.data() as UserData;
+        return {
+          name: data.name,
+          watchlist: data.watchlist || [],
+          joinedDate: data.joinedDate
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      return null;
     }
-    return refreshUserData();
-  }
+  }, [user]);
 
   const refreshUserData = useCallback(async () => {
     if (user) {
-      const userDocRef = doc(db, 'users', user.uid)
-      const userDocSnap = await getDoc(userDocRef)
-      if (userDocSnap.exists()) {
-        const userData = userDocSnap.data() as UserData
-        setUserData(userData)
-        return userData
-      }
+      const userData = await getUserData();
+      setUserData(userData);
+      return userData;
     }
-    setUserData(null)
-    return null
-  }, [user])
+    return null;
+  }, [user]);
 
   const addToWatchlist = async (ticker: string) => {
     const currentUser = auth.currentUser;
@@ -130,6 +150,62 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     await sendPasswordResetEmail(auth, email)
   };
 
+  const updateUserProfile = async (newName: string) => {
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      try {
+        await updateProfile(currentUser, { displayName: newName });
+        const userRef = doc(db, 'users', currentUser.uid);
+        await setDoc(userRef, { name: newName }, { merge: true });
+        await refreshUserData();
+      } catch (error) {
+        console.error("Error updating user profile:", error);
+        throw error;
+      }
+    }
+  };
+
+  const updateUserEmail = async (newEmail: string, password: string) => {
+    const currentUser = auth.currentUser;
+    if (currentUser && currentUser.email) {
+      try {
+        const credential = EmailAuthProvider.credential(currentUser.email, password);
+        await reauthenticateWithCredential(currentUser, credential);
+        await updateEmail(currentUser, newEmail);
+        await refreshUserData();
+      } catch (error) {
+        console.error("Error updating user email:", error);
+        throw error;
+      }
+    }
+  };
+
+  const deleteAccount = async (password: string) => {
+    const currentUser = auth.currentUser;
+    if (currentUser && currentUser.email) {
+      try {
+        const credential = EmailAuthProvider.credential(currentUser.email, password);
+        await reauthenticateWithCredential(currentUser, credential);
+        
+        // Delete user data from Firestore
+        const userRef = doc(db, 'users', currentUser.uid);
+        await deleteDoc(userRef);
+        
+        // Delete the user account
+        await deleteUser(currentUser);
+        
+        // Clear local user state
+        setUser(null);
+        setUserData(null);
+        
+        router.push('/');
+      } catch (error) {
+        console.error("Error deleting account:", error);
+        throw error;
+      }
+    }
+  };
+
   const value = {
     user,
     userData,
@@ -141,7 +217,10 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     refreshUserData,
     addToWatchlist,
     removeFromWatchlist,
-    resetPassword
+    resetPassword,
+    updateUserProfile,
+    updateUserEmail,
+    deleteAccount,
   };
 
   return (
