@@ -91,6 +91,24 @@ interface UserProfileData {
   }>;
 }
 
+// Add this interface near the top of your file, with the other interfaces
+interface StockApiResponse {
+  ticker: string;
+  company_name: string;
+  final_grade: string;
+  recommendation: string;
+  volatility_rating: string;
+  current_price: number;
+  analysis: {
+    pe_ratio: number;
+    pb_ratio: number;
+    roe: number;
+    eps_growth: number;
+    de_ratio: number;
+  };
+  volatility_percentage: number;
+}
+
 function DashboardPage() {
   const { user, getUserData, addToWatchlist, removeFromWatchlist, logout } = useFirebase()
   // Ensure the initial state matches this type
@@ -128,33 +146,33 @@ function DashboardPage() {
     const fetchUserDataAndStocks = async () => {
       if (user) {
         const data = await getUserData()
-        setUserData(data as UserData) // Add type assertion here
-        if (data?.watchlist) {
-          const newCheckedStocks: string[] = []
-          for (const ticker of data.watchlist) {
-            await searchStocks(ticker)
-            newCheckedStocks.push(ticker)
-          }
-          setCheckedStocks(newCheckedStocks)
+        setUserData(data as UserData)
+        if (data?.watchlist && data.watchlist.length > 0) {
+          const tickersString = data.watchlist.join(',')
+          await searchStocks(tickersString)
+          setCheckedStocks(data.watchlist)
         }
       }
     }
     fetchUserDataAndStocks()
   }, [user])
 
-  const searchStocks = async (ticker: string) => {
-    if (!ticker) return
+  const searchStocks = async (tickers: string) => {
+    if (!tickers) return
     
     setIsLoading(true)
     try {
-      const firebaseResponse = await axios.get(`https://us-central1-alphaorbit-2cf88.cloudfunctions.net/analyzeStocks?tickers=${ticker.toUpperCase()}`)
+      const firebaseResponse = await axios.get(`https://us-central1-alphaorbit-2cf88.cloudfunctions.net/analyzeStocks?tickers=${tickers.toUpperCase()}`)
       console.log(firebaseResponse.data)
       
-      const stockData = firebaseResponse.data.data[0] // The first (and only) item in the data array
-      const historicalPrices = firebaseResponse.data.stock_data[ticker.toUpperCase()]
+      const stockDataArray = firebaseResponse.data.data
+      const historicalPricesMap = firebaseResponse.data.stock_data
 
-      if (stockData && historicalPrices) {
-        const newStock: Stock = {
+      const newStocks = stockDataArray.map((stockData: StockApiResponse) => {
+        const ticker = stockData.ticker
+        const historicalPrices = historicalPricesMap[ticker.toUpperCase()]
+
+        return {
           ticker: stockData.ticker,
           companyName: stockData.company_name,
           percentageChange: Number(firebaseResponse.data.overall_gain).toFixed(2),
@@ -163,7 +181,6 @@ function DashboardPage() {
           volatilityRating: stockData.volatility_rating,
           currentPrice: Number(stockData.current_price).toFixed(2),
           historicalPrices: historicalPrices,
-          // Add any additional fields you want to include
           peRatio: stockData.analysis.pe_ratio,
           pbRatio: stockData.analysis.pb_ratio,
           roe: stockData.analysis.roe,
@@ -171,27 +188,20 @@ function DashboardPage() {
           deRatio: stockData.analysis.de_ratio,
           volatilityPercentage: stockData.volatility_percentage
         }
+      })
 
-        setStocks(prevStocks => {
-          // Check if the stock already exists
-          const stockExists = prevStocks.some(stock => stock.ticker === newStock.ticker);
-          if (stockExists) {
-            // If it exists, update it
-            const updatedStocks = prevStocks.map(stock => 
-              stock.ticker === newStock.ticker ? newStock : stock
-            );
-            setFilteredStocks(updatedStocks);
-            return updatedStocks;
-          } else {
-            // If it doesn't exist, add it
-            const updatedStocks = [...prevStocks, newStock];
-            setFilteredStocks(updatedStocks);
-            return updatedStocks;
-          }
-        });
-      } else {
-        console.error('Invalid stock data received')
-      }
+      setStocks(prevStocks => {
+        const updatedStocks = prevStocks.filter(stock => 
+          !newStocks.some((newStock: Stock) => newStock.ticker === stock.ticker)
+        )
+        return [...updatedStocks, ...newStocks]
+      })
+      setFilteredStocks(prevFilteredStocks => {
+        const updatedFilteredStocks = prevFilteredStocks.filter(stock => 
+          !newStocks.some((newStock: Stock) => newStock.ticker === stock.ticker)
+        )
+        return [...updatedFilteredStocks, ...newStocks]
+      })
     } catch (error) {
       console.error('Error fetching stock data:', error)
     } finally {
@@ -545,14 +555,21 @@ function DashboardPage() {
             <InsightItem icon={<FaEnvelope />} text="Messages" badge={12} badgeColor="red" />
             <InsightItem icon={<FaBell />} text="Notifications" badge={6} badgeColor="gray" />
           </div>
-          <div className="flex bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl overflow-hidden w-3/4 p-5 m-auto">
-            <div className="w-1/3">
-              <img src="./premium-icon.png" alt="Portfolio" className="object-cover w-full h-full" />
+          <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl w-3/4 p-3 m-auto relative">
+            <div className="absolute top-0 left-0 w-1/2">
+              <img src="./premium-icon.png" alt="Premium" className="w-full h-auto" />
             </div>
-            <div className='text-white'>
-              Get 3 Free Months Of Pro!
-              <br></br>
-              <span>Get Pro Now! <FaArrowRight /></span>
+            <div className="text-white">
+              <p className="text-xl font-bold leading-tight mb-1 text-right">
+                Get <br />
+                3 Free<br />
+                Months<br />
+                Of Pro!
+              </p>
+            </div>
+            <div className="text-white flex items-center">
+              <span className="text-sm font-semibold mr-1">Get Pro Now!</span>
+              <FaArrowRight size={12} />
             </div>
           </div>
           <div className="p-4 mt-auto">
