@@ -1,9 +1,10 @@
 "use client"
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { signInWithEmailAndPassword, signOut, User, sendPasswordResetEmail, updateProfile, updateEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
-import { auth, createUserWithEmailAndPassword, db } from '../firebase/firebaseConfig';
+import { signInWithEmailAndPassword, signOut, User, sendPasswordResetEmail, updateProfile, updateEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential, createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth, db, logEvent } from '../firebase/firebaseConfig';
 import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
+import { getAnalytics } from 'firebase/analytics';
 
 interface UserData {
   name: string
@@ -26,6 +27,7 @@ interface FirebaseContextType {
   updateUserProfile: (newName: string) => Promise<void>;
   updateUserEmail: (newEmail: string, password: string) => Promise<void>;
   deleteAccount: (password: string) => Promise<void>;
+  logAnalyticsEvent: (eventName: string, eventParams?: Record<string, string | number | boolean>) => void;
 }
 
 const FirebaseContext = createContext<FirebaseContextType | undefined>(undefined);
@@ -206,6 +208,13 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const logAnalyticsEvent = useCallback((eventName: string, eventParams?: Record<string, string | number | boolean>) => {
+    if (typeof window !== 'undefined') {
+      const analytics = getAnalytics();
+      logEvent(analytics, eventName, eventParams);
+    }
+  }, []);
+
   const value = {
     user,
     userData,
@@ -221,6 +230,7 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     updateUserProfile,
     updateUserEmail,
     deleteAccount,
+    logAnalyticsEvent
   };
 
   return (

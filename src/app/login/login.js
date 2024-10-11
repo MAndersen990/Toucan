@@ -10,10 +10,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const router = useRouter();
-  const { login } = useFirebase();
+  const { login, logAnalyticsEvent } = useFirebase();
 
   const handleCheckboxClick = () => {
     setIsRemembered(!isRemembered);
+    logAnalyticsEvent('login_remember_email', { checked: !isRemembered });
   };
 
   const handleLogin = async (e) => {
@@ -21,17 +22,41 @@ export default function LoginPage() {
     try {
       login(email, password)
       .then(() => {
+        logAnalyticsEvent('login', { method: 'email' });
         router.push('/dashboard');
       })
       .catch((error) => {
         setError('Failed to log in. Please check your credentials.');
+        logAnalyticsEvent('login_error', { ...error });
         console.error('Login error:', error);
       });
     } catch (error) {
       setError('Failed to log in. Please check your credentials.');
+      logAnalyticsEvent('login_error', { ...error });
       console.error('Login error:', error);
     }
   };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      // ... existing Google sign-in logic ...
+      logAnalyticsEvent('login', { method: 'google' });
+      
+    } catch (error) {
+      logAnalyticsEvent('login', { ...error });
+      // ... error handling ...
+    }
+  }
+  
+  const handleAppleSignIn = async () => {
+    try {
+      // ... existing Apple sign-in logic ...
+      logAnalyticsEvent('login', { method: 'apple' });
+    } catch (error) {
+      // ... error handling ...
+      logAnalyticsEvent('login_error', { ...error });
+    }
+  }
 
   return (
     <div className="relative flex min-h-full flex-col justify-center px-4 py-8 sm:px-6 lg:px-8 w-full lg:w-3/5 mx-auto">
@@ -59,6 +84,7 @@ export default function LoginPage() {
               boxShadow: "3px 16px 40px #695F9724",
               padding: "16px"
             }}
+            onClick={handleGoogleSignIn}
           >
             <img
               src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1280px-Google_%22G%22_logo.svg.png"
@@ -78,6 +104,7 @@ export default function LoginPage() {
               boxShadow: "3px 16px 40px #695F9724",
               padding: "16px"
             }}
+            onClick={handleAppleSignIn}
           >
             <img
               src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Apple_Logo.svg/1280px-Apple_Logo.svg.png"

@@ -1,7 +1,8 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { initializeAppCheck, ReCaptchaV3Provider, AppCheck } from 'firebase/app-check';
+import { getAnalytics, logEvent, isSupported } from 'firebase/analytics';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBWQ40NnSo1Ou4cM5u31Qgiari8Km19ZNA",
@@ -33,4 +34,6 @@ if (typeof window !== 'undefined') {
   });
 }
 
-export { app, auth, db, appCheck, createUserWithEmailAndPassword };
+const analytics = isSupported().then(yes => yes ? getAnalytics(app) : null);
+
+export { app, auth, db, appCheck, analytics, logEvent };

@@ -13,11 +13,12 @@ export default function SignupPage() {
   const [username, setUsername] = useState("")
   const [error, setError] = useState("")
   const router = useRouter()
-  const { signUp } = useFirebase()
+  const { signUp, logAnalyticsEvent } = useFirebase()
 
   // Toggle the checkbox state
   const handleCheckboxClick = () => {
     setIsRemembered(!isRemembered);
+    logAnalyticsEvent('sign_up_remember_email', { checked: !isRemembered });
   };
 
   const handleSignUp = async (e: FormEvent) => {
@@ -31,12 +32,15 @@ export default function SignupPage() {
 
     try {
       await signUp(email, password, name, username)
+      logAnalyticsEvent('sign_up', { method: 'email' });
       router.push('/dashboard')
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message)
+        logAnalyticsEvent('sign_up_error', { message: err.message });
       } else {
         setError("Failed to create an account. Please try again.")
+        logAnalyticsEvent('sign_up_error', { message: "Failed to create an account." });
       }
       console.error(err)
     }
