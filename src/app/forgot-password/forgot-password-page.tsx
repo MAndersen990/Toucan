@@ -6,15 +6,17 @@ import Link from 'next/link'
 
 function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
-  const { resetPassword } = useFirebase()
+  const { resetPassword, logAnalyticsEvent } = useFirebase()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       await resetPassword(email)
+      logAnalyticsEvent('forgot_email_request');
       alert("Please check your email for instructions to reset your password.")
     } catch (error) {
       alert(error)
+      logAnalyticsEvent('forgot_email_request_failed');
     }
   }
 
