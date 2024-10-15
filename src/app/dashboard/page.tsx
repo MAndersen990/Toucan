@@ -229,6 +229,7 @@ function DashboardPage() {
   }, [stocks, checkedStocks])
 
   function updateChartData(currentStocks: Stock[], checkedTickers: string[]) {
+    console.log("Current Stocks: ", currentStocks);
     const newDatasets = currentStocks
       .filter(stock => checkedTickers.includes(stock.ticker))
       .map((stock, index) => ({
@@ -491,12 +492,26 @@ function DashboardPage() {
     logAnalyticsEvent('stock_inspector_closed');
   };
 
+  function getVolPercent(percent: number): string {
+    if (percent <= 10) {
+      return 'bg-[##1AD598] w-1/5';
+    } else if (percent <= 25) {
+      return 'bg-[#F9B035] w-1/3';
+    } else if (percent <= 50) {
+      return 'bg-[#F9B035] w-1/2';
+    } else if (percent <= 75) {
+      return 'bg-[#F96767] w-3/4'; 
+    } else {
+      return 'bd-[##BDC6CC] w-full';
+    }
+  }
+
   if (!user) {
     router.replace('/');
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-100">
+    <div className="flex flex-col min-h-screen bg-gray-100 w-">
       {/* Mobile Header */}
       <header className="lg:hidden bg-white shadow-md p-4 flex justify-between items-center">
         <div className="flex items-center">
@@ -593,7 +608,7 @@ function DashboardPage() {
           </div>
           <div className="p-4 mt-auto">
             <div className="flex items-center justify-between">
-              <img src="/avatar.png" alt="User" className="w-10 h-10 rounded-full" />
+              <img src="/Richie_3.png" alt="User" className="w-10 h-10 rounded-2xl object-none object-left-top bg-[#F96767]" />
               <span>{userData?.name}</span>
               <div className="flex">
                 <button className="text-gray-500 hover:text-gray-700 mr-2" onClick={() => logout()}>
@@ -619,9 +634,7 @@ function DashboardPage() {
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                      y: {
-                        beginAtZero: false,
-                      },
+                      
                     },
                   }} />
                 </div>
@@ -749,7 +762,6 @@ function DashboardPage() {
                               onChange={() => toggleStockCheck(stock.ticker)}
                               className="mr-2"
                             />
-                            {/* <Image src={stock.logo} alt={stock.companyName} width={48} height={48} className="rounded-2xl mr-4" /> */}
                             <img src={stock.logo} alt={stock.companyName} width={48} height={48} className="rounded-2xl mr-4" />
                             <div>
                               <p className="font-semibold">{stock.companyName}</p>
@@ -762,7 +774,7 @@ function DashboardPage() {
                         </td>
                         <td className="py-2 px-4 text-center">{stock.finalGrade}</td>
                         <td className="py-2 px-4 text-center">{stock.recommendation}</td>
-                        <td className="py-2 px-4 text-center">{stock.volatilityRating}</td>
+                        <td className="py-2 px-4 text-center"><div className='h-1.5 bg-[#F6EFFF]'><div className={`h-1.5 ${getVolPercent(stock.volatilityPercentage)}`}/></div></td>
                         <td className="py-2 px-4 text-center">${stock.currentPrice}</td>
                         <td className="py-2 px-4 text-center">
                           <button
@@ -780,9 +792,9 @@ function DashboardPage() {
             </div>
           </div>
         </main>
-
+        
         {/* Stock Inspector Aside (hidden on mobile) */}
-        <aside className={`lg:w-96 bg-gray-50 p-6 transition-all duration-300 ease-in-out transform ${selectedStock ? 'translate-x-0 lg:block hidden' : 'translate-x-full hidden'}`}>
+        <aside className={`lg:w-fit bg-gray-50 p-6 transition-all duration-500 ease-in-out transform ${selectedStock ? 'translate-x-0 lg:block hidden' : 'translate-x-full hidden'} overflow-y-auto`}>
           {selectedStock && (
             <StockInspector
               stock={{
@@ -796,12 +808,15 @@ function DashboardPage() {
                 dividendYield: selectedStock.dividendYield || 1.3,
                 rating: selectedStock.finalGrade,
                 volatility: selectedStock.volatilityRating,
+                volatilityPercent: selectedStock.volatilityPercentage,
                 recommendation: selectedStock.recommendation,
                 actionInsight: `Buy between $${Number(selectedStock.currentPrice) - 0.5}-${Number(selectedStock.currentPrice) + 0.5}`,
               }}
               onClose={closeStockInspector}
+              removeStock={deleteStock}
             />
           )}
+          
         </aside>
 
         {/* Stock Inspector Modal (visible on mobile) */}
@@ -820,10 +835,12 @@ function DashboardPage() {
                   dividendYield: selectedStock.dividendYield || 1.3,
                   rating: selectedStock.finalGrade,
                   volatility: selectedStock.volatilityRating,
+                  volatilityPercent: selectedStock.volatilityPercentage,
                   recommendation: selectedStock.recommendation,
                   actionInsight: `Buy between $${Number(selectedStock.currentPrice) - 0.5}-${Number(selectedStock.currentPrice) + 0.5}`,
                 }}
                 onClose={closeStockInspector}
+                removeStock={deleteStock}
               />
             </div>
           </div>
@@ -845,7 +862,7 @@ function DashboardPage() {
               {/* Left Column */}
               <div className="lg:col-span-1">
                 <div className="bg-white rounded-lg shadow p-6 mb-6">
-                  <img src="/avatar.png" alt="User Avatar" className="w-32 h-32 rounded-full mx-auto mb-4" />
+                  <img src="./Richie_3.png" alt="User Avatar" className="w-32 h-32 rounded-full mx-auto mb-4 object-none" />
                   <h3 className="text-xl font-semibold text-center mb-2">{profileData.name}</h3>
                   <p className="text-gray-600 text-center mb-4">{profileData.email}</p>
                   <p className="text-gray-600 text-center text-sm">Member since: {profileData.memberSince}</p>
