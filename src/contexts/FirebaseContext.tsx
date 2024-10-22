@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { signInWithEmailAndPassword, signOut, User, sendPasswordResetEmail, updateProfile, updateEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth, db, logEvent } from '../firebase/firebaseConfig';
-import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, serverTimestamp, updateDoc, arrayUnion, arrayRemove, collection, query, where, getDocs } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { getAnalytics } from 'firebase/analytics';
 
@@ -128,8 +128,11 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (userDoc.exists()) {
         const currentData = userDoc.data();
         const updatedWatchlist = [...(currentData.watchlist || []), ticker];
-        await setDoc(userRef, { ...currentData, watchlist: updatedWatchlist }, { merge: true });
-        await refreshUserData(); // Refresh the cached user data
+        if ( typeof currentData.watchlist == 'undefined' || !currentData.watchlist.includes(ticker) ) {
+          await setDoc(userRef, { ...currentData, watchlist: updatedWatchlist }, { merge: true });
+          await refreshUserData(); // Refresh the cached user data
+          await updateMasterWatchlist(ticker); // Update the master watchlist
+        }
       }
     }
   }
@@ -144,6 +147,7 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const updatedWatchlist = currentData.watchlist.filter((item: string) => item !== ticker);
         await setDoc(userRef, { ...currentData, watchlist: updatedWatchlist }, { merge: true });
         await refreshUserData(); // Refresh the cached user data
+        await updateMasterWatchlistAfterRemoval(ticker); // Check and update the master watchlist
       }
     }
   }
@@ -239,3 +243,34 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     </FirebaseContext.Provider>
   );
 };
+
+const updateMasterWatchlist = async (ticker: string) => {
+  const masterRef = doc(db, 'masterWatchlist', 'allTickers');
+  const masterDoc = await getDoc(masterRef);
+  if (masterDoc.exists()) {
+    const masterData = masterDoc.data();
+    if (!masterData.tickers.includes(ticker)) {
+      // Use arrayUnion to avoid duplicates if concurrent updates occur
+      await updateDoc(masterRef, {
+        tickers: arrayUnion(ticker)
+      });
+    }
+  } else {
+    // If the master document does not exist, create it with the initial ticker
+    await setDoc(masterRef, { tickers: [ticker] });
+  }
+}
+
+const updateMasterWatchlistAfterRemoval = async (ticker: string) => {
+  const usersRef = collection(db, 'users');
+  const q = query(usersRef, where("watchlist", "array-contains", ticker));
+  const querySnapshot = await getDocs(q);
+
+  if (querySnapshot.empty) {
+    // If no other user has this ticker, remove it from the master watchlist
+    const masterRef = doc(db, 'masterWatchlist', 'allTickers');
+    await updateDoc(masterRef, {
+      tickers: arrayRemove(ticker)
+    });
+  }
+}
