@@ -5,13 +5,13 @@ import { initializeAppCheck, ReCaptchaV3Provider, AppCheck } from 'firebase/app-
 import { getAnalytics, logEvent, isSupported } from 'firebase/analytics';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBWQ40NnSo1Ou4cM5u31Qgiari8Km19ZNA",
-  authDomain: "alphaorbit-2cf88.firebaseapp.com",
-  projectId: "alphaorbit-2cf88",
-  storageBucket: "alphaorbit-2cf88.appspot.com",
-  messagingSenderId: "464364454067",
-  appId: "1:464364454067:web:a728187dfade63d7aff0c6",
-  measurementId: "G-JB1FVPQYV5"
+  apiKey: "AIzaSyBsOes01Lnp2leFMN_qJbk-_X6nZIlHvBU",
+  authDomain: "alpha-orbit.firebaseapp.com",
+  projectId: "alpha-orbit",
+  storageBucket: "alpha-orbit.appspot.com",
+  messagingSenderId: "152969284019",
+  appId: "1:152969284019:web:8c2a1d6a7d6a48c52623c6",
+  measurementId: "G-4TB90WRQ97"
 };
 
 // Initialize Firebase

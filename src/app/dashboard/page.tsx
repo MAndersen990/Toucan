@@ -28,9 +28,9 @@ interface Stock {
   epsGrowth: number
   deRatio: number
   volatilityPercentage: number
-  revenue?: string
-  eps?: string
-  dividendYield?: number
+  revenue: string
+  eps: string
+  dividendYield: number
 }
 
 interface SearchMatch {
@@ -105,6 +105,7 @@ interface StockApiResponse {
   recommendation: string;
   volatility_rating: string;
   current_price: number;
+  percentage_change: number;
   analysis: {
     pe_ratio: number;
     pb_ratio: number;
@@ -150,7 +151,10 @@ function DashboardPage() {
 
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
 
-  const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
+  const [stockHistory, setStockHistory] = useState<Stock[]>([]); // State to track the history of selected stocks
+
+  // Add this new state for mobile stock inspection
+  const [mobileInspectedStock, setMobileInspectedStock] = useState<Stock | null>(null);
 
   useEffect(() => {
     // Log a page view event when the dashboard is loaded
@@ -178,7 +182,7 @@ function DashboardPage() {
     setIsLoading(true)
     try {
       const firebaseResponse = await axios.get(`https://us-central1-alphaorbit-2cf88.cloudfunctions.net/analyzeStocks?tickers=${tickers.toUpperCase()}`)
-
+      
       const stockDataArray = firebaseResponse.data.data
       const historicalPricesMap = firebaseResponse.data.stock_data
 
@@ -189,7 +193,7 @@ function DashboardPage() {
         return {
           ticker: stockData.ticker,
           companyName: stockData.company_name,
-          percentageChange: Number(firebaseResponse.data.overall_gain).toFixed(2),
+          percentageChange: Number(stockData.percentage_change).toFixed(2),
           finalGrade: stockData.final_grade,
           recommendation: stockData.recommendation,
           volatilityRating: stockData.volatility_rating,
@@ -229,7 +233,6 @@ function DashboardPage() {
   }, [stocks, checkedStocks])
 
   function updateChartData(currentStocks: Stock[], checkedTickers: string[]) {
-    console.log("Current Stocks: ", currentStocks);
     const newDatasets = currentStocks
       .filter(stock => checkedTickers.includes(stock.ticker))
       .map((stock, index) => ({
@@ -247,14 +250,14 @@ function DashboardPage() {
     }))
   }
 
-  function toggleStockCheck(ticker: string) {
+  const toggleStockCheck = useCallback((ticker: string) => {
     setCheckedStocks(prev => {
       const newCheckedStocks = prev.includes(ticker)
         ? prev.filter(t => t !== ticker)
         : [...prev, ticker]
       return newCheckedStocks
     })
-  }
+  }, [])
 
   const deleteStock = async (ticker: string) => {
     try {
@@ -430,67 +433,51 @@ function DashboardPage() {
   }
 
   const selectSuggestion = async (item: { ticker: string, name: string }) => {
-    setSearch('')
-    setSuggestions([])
-    
-    if (user) {
-      try {
-        // Check if the ticker is already in the watchlist
-        if (userData?.watchlist.includes(item.ticker)) {
-          console.log(`${item.ticker} is already in the watchlist`)
-          // Optionally, show a message to the user
-          return
-        }
+    setSearch('');
+    setSuggestions([]);
 
-        await addToWatchlist(item.ticker)
-        logAnalyticsEvent('add_to_watchlist', { ticker: item.ticker });
-        // Update the local userData state
-        setUserData(prevData => {
-          if (!prevData) {
-            return {
-              watchlist: [item.ticker],
-              name: '',
-              joinedDate: new Date().toISOString(),
-              portfolioValue: 0,
-              portfolioGainLoss: 0,
-              numberOfStocks: 0,
-              cashBalance: 0,
-              recentActivity: []
-            }
-          }
-          return {
-            ...prevData,
-            watchlist: [...prevData.watchlist, item.ticker]
-          }
-        })
-        // Fetch and add the new stock data
-        await searchStocks(item.ticker)
-        // Automatically check the new stock
-        setCheckedStocks(prev => [...prev, item.ticker])
-      } catch (error) {
-        console.error('Error adding to watchlist:', error)
-        // Optionally, show an error message to the user
-      }
-    } else {
-      console.log('User not logged in. Unable to add to watchlist.')
-      // Optionally, show a message to the user prompting them to log in
+    try {
+      const response = await axios.get(`https://us-central1-alphaorbit-2cf88.cloudfunctions.net/analyzeStocks?tickers=${item.ticker.toUpperCase()}`);
+      const stockData = response.data.data[0]; // Assuming the API returns an array with a single stock
+      console.log(stockData);
+      const newStock: Stock = {
+        logo: stockData.logo,
+        ticker: stockData.ticker,
+        companyName: stockData.company_name,
+        currentPrice: stockData.current_price.toFixed(2),
+        percentageChange: Number(response.data.overall_gain).toFixed(2),
+        finalGrade: stockData.final_grade,
+        recommendation: stockData.recommendation,
+        volatilityRating: stockData.volatility_rating,
+        historicalPrices: response.data.stock_data[stockData.ticker.toUpperCase()],
+        peRatio: stockData.analysis.pe_ratio,
+        pbRatio: stockData.analysis.pb_ratio,
+        roe: stockData.analysis.roe,
+        epsGrowth: stockData.analysis.eps_growth,
+        deRatio: stockData.analysis.de_ratio,
+        volatilityPercentage: stockData.volatility_percentage,
+        revenue: stockData.revenue,
+        eps: stockData.eps,
+        dividendYield: stockData.dividend_yield, 
+      };
+
+      // Add the new stock to the history
+      setStockHistory(prevHistory => [newStock, ...prevHistory.filter(s => s.ticker !== newStock.ticker)]);
+      
+    } catch (error) {
+      console.error('Error fetching stock data:', error);
     }
-  }
-
-  useEffect(() => {
-    // Log a page view event when the dashboard is loaded
-    logAnalyticsEvent('page_view', { page_name: 'dashboard' })
-  }, [logAnalyticsEvent])
-
-  const handleStockClick = (stock: Stock) => {
-    setSelectedStock(stock);
-    logAnalyticsEvent('stock_inspector_opened', { ticker: stock.ticker });
   };
 
-  const closeStockInspector = () => {
-    setSelectedStock(null);
-    logAnalyticsEvent('stock_inspector_closed');
-  };
+  const handleStockClick = useCallback((stock: Stock) => {
+    if (window.innerWidth >= 1024) {
+      // For large screens, update the stock history
+      setStockHistory(prevHistory => [stock, ...prevHistory.filter(s => s.ticker !== stock.ticker)]);
+    } else {
+      // For mobile, set the inspected stock
+      setMobileInspectedStock(stock);
+    }
+  }, []);
 
   function getVolPercent(percent: number): string {
     if (percent <= 10) {
@@ -506,12 +493,51 @@ function DashboardPage() {
     }
   }
 
+  const handleAddToWatchlist = async (ticker: string) => {
+    try {
+      await addToWatchlist(ticker);
+      logAnalyticsEvent('add_to_watchlist', { ticker: ticker });
+      // Update the local userData state
+      setUserData(prevData => {
+        if (!prevData) return null;
+        return {
+          ...prevData,
+          watchlist: [...prevData.watchlist, ticker]
+        };
+      });
+      // Fetch the stock data and add it to the stocks state
+      await searchStocks(ticker);
+    } catch (error) {
+      console.error('Error adding stock to watchlist:', error);
+    }
+  };
+
+  const handleRemoveFromWatchlist = async (ticker: string) => {
+    try {
+      await removeFromWatchlist(ticker);
+      logAnalyticsEvent('remove_from_watchlist', { ticker: ticker });
+      // Update the local userData state
+      setUserData(prevData => {
+        if (!prevData) return null;
+        return {
+          ...prevData,
+          watchlist: prevData.watchlist.filter(item => item !== ticker)
+        };
+      });
+      // Remove the stock from the stocks state
+      setStocks(prevStocks => prevStocks.filter(stock => stock.ticker !== ticker));
+      setFilteredStocks(prevFilteredStocks => prevFilteredStocks.filter(stock => stock.ticker !== ticker));
+    } catch (error) {
+      console.error('Error removing stock from watchlist:', error);
+    }
+  };
+
   if (!user) {
     router.replace('/');
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-100 w-">
+    <div className="flex flex-col min-h-screen bg-gray-100">
       {/* Mobile Header */}
       <header className="lg:hidden bg-white shadow-md p-4 flex justify-between items-center">
         <div className="flex items-center">
@@ -666,7 +692,8 @@ function DashboardPage() {
                     </div>
                   )}
                 </div>
-                <button className="bg-gray-200 text-gray-700 px-4 py-2 rounded w-full lg:w-auto"
+                <button 
+                  className="bg-gray-200 text-gray-700 px-4 py-2 rounded w-full lg:w-auto"
                   onClick={() => setIsFilterOpen(!isFilterOpen)}
                 >
                   Filter ▼
@@ -739,14 +766,15 @@ function DashboardPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   {/* Table header */}
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="py-2 px-4 text-left">Company Name / Ticker</th>
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="py-2 px-4 text-left hidden lg:table-cell"></th>
+                      <th className="py-2 px-4 text-left">Company / Ticker</th>
                       <th className="py-2 px-4 text-center">+/- Gain</th>
-                      <th className="py-2 px-4 text-center">Rating</th>
-                      <th className="py-2 px-4 text-center">Signal</th>
-                      <th className="py-2 px-4 text-center">Volatility</th>
-                      <th className="py-2 px-4 text-center">Current Price</th>
+                      <th className="py-2 px-4 text-center hidden lg:table-cell">Rating</th>
+                      <th className="py-2 px-4 text-center hidden lg:table-cell">Signal</th>
+                      <th className="py-2 px-4 text-center hidden lg:table-cell">Volatility</th>
+                      <th className="py-2 px-4 text-center">Price</th>
                       <th className="py-2 px-4 text-center">Actions</th>
                     </tr>
                   </thead>
@@ -754,15 +782,20 @@ function DashboardPage() {
                   <tbody>
                     {sortedStocks.map((stock) => (
                       <tr key={stock.ticker} className="border-b cursor-pointer hover:bg-gray-50" onClick={() => handleStockClick(stock)}>
+                        <td className="py-2 px-4 hidden lg:table-cell">
+                          <input
+                            type="checkbox"
+                            checked={checkedStocks.includes(stock.ticker)}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              toggleStockCheck(stock.ticker);
+                            }}
+                            className="mr-2 z-10"
+                          />
+                        </td>
                         <td className="py-2 px-4">
                           <div className="flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={checkedStocks.includes(stock.ticker)}
-                              onChange={() => toggleStockCheck(stock.ticker)}
-                              className="mr-2"
-                            />
-                            <img src={stock.logo} alt={stock.companyName} width={48} height={48} className="rounded-2xl mr-4" />
+                            <img src={stock.logo ? stock.logo : './placeholder-image.png'} alt={stock.companyName} width={32} height={32} className="rounded-full mr-2 hidden lg:block" />
                             <div>
                               <p className="font-semibold">{stock.companyName}</p>
                               <p className="text-sm text-gray-500">{stock.ticker}</p>
@@ -772,13 +805,20 @@ function DashboardPage() {
                         <td className={`py-2 px-4 text-center ${parseFloat(stock.percentageChange) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                           {stock.percentageChange}%
                         </td>
-                        <td className="py-2 px-4 text-center">{stock.finalGrade}</td>
-                        <td className="py-2 px-4 text-center">{stock.recommendation}</td>
-                        <td className="py-2 px-4 text-center"><div className='h-1.5 bg-[#F6EFFF]'><div className={`h-1.5 ${getVolPercent(stock.volatilityPercentage)}`}/></div></td>
+                        <td className="py-2 px-4 text-center hidden lg:table-cell">{stock.finalGrade}</td>
+                        <td className="py-2 px-4 text-center hidden lg:table-cell">{stock.recommendation}</td>
+                        <td className="py-2 px-4 text-center hidden lg:table-cell">
+                          <div className='h-1.5 bg-[#F6EFFF]'>
+                            <div className={`h-1.5 ${getVolPercent(stock.volatilityPercentage)}`}/>
+                          </div>
+                        </td>
                         <td className="py-2 px-4 text-center">${stock.currentPrice}</td>
                         <td className="py-2 px-4 text-center">
                           <button
-                            onClick={() => deleteStock(stock.ticker)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteStock(stock.ticker);
+                            }}
                             className="text-red-500 hover:text-red-700"
                           >
                             🗑️
@@ -793,54 +833,31 @@ function DashboardPage() {
           </div>
         </main>
         
-        {/* Stock Inspector Aside (hidden on mobile) */}
-        <aside className={`lg:w-fit bg-gray-50 p-6 transition-all duration-500 ease-in-out transform ${selectedStock ? 'translate-x-0 lg:block hidden' : 'translate-x-full hidden'} overflow-y-auto`}>
-          {selectedStock && (
-            <StockInspector
-              stock={{
-                logo: selectedStock.logo,
-                companyName: selectedStock.companyName,
-                ticker: selectedStock.ticker,
-                currentPrice: selectedStock.currentPrice,
-                revenue: selectedStock.revenue || '$1.5T',
-                eps: selectedStock.eps || '$5.00',
-                peRatio: selectedStock.peRatio,
-                dividendYield: selectedStock.dividendYield || 1.3,
-                rating: selectedStock.finalGrade,
-                volatility: selectedStock.volatilityRating,
-                volatilityPercent: selectedStock.volatilityPercentage,
-                recommendation: selectedStock.recommendation,
-                actionInsight: `Buy between $${Number(selectedStock.currentPrice) - 0.5}-${Number(selectedStock.currentPrice) + 0.5}`,
-              }}
-              onClose={closeStockInspector}
-              removeStock={deleteStock}
-            />
-          )}
-          
+        {/* Stock Inspector Aside (visible on large screens) */}
+        <aside className={`lg:w-fit bg-gray-50 p-6 transition-all duration-500 ease-in-out transform ${stockHistory.length > 0 ? 'translate-x-0 lg:block hidden' : 'translate-x-full hidden'} overflow-y-auto`}>
+          <StockInspector
+            stocks={stockHistory}
+            watchlist={userData?.watchlist || []}
+            onClose={() => setStockHistory([])}
+            removeStock={deleteStock}
+            removeFromHistory={(ticker: string) => setStockHistory(prev => prev.filter(stock => stock.ticker !== ticker))}
+            addToWatchlist={handleAddToWatchlist}
+            removeFromWatchlist={handleRemoveFromWatchlist}
+          />
         </aside>
 
         {/* Stock Inspector Modal (visible on mobile) */}
-        {selectedStock && (
+        {mobileInspectedStock && (
           <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
             <div className="bg-white rounded-lg p-4 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
               <StockInspector
-                stock={{
-                  logo: selectedStock.logo,
-                  companyName: selectedStock.companyName,
-                  ticker: selectedStock.ticker,
-                  currentPrice: selectedStock.currentPrice,
-                  revenue: selectedStock.revenue || '$1.5T',
-                  eps: selectedStock.eps || '$5.00',
-                  peRatio: selectedStock.peRatio,
-                  dividendYield: selectedStock.dividendYield || 1.3,
-                  rating: selectedStock.finalGrade,
-                  volatility: selectedStock.volatilityRating,
-                  volatilityPercent: selectedStock.volatilityPercentage,
-                  recommendation: selectedStock.recommendation,
-                  actionInsight: `Buy between $${Number(selectedStock.currentPrice) - 0.5}-${Number(selectedStock.currentPrice) + 0.5}`,
-                }}
-                onClose={closeStockInspector}
+                stocks={[mobileInspectedStock]}
+                watchlist={userData?.watchlist || []}
+                onClose={() => setMobileInspectedStock(null)}
                 removeStock={deleteStock}
+                removeFromHistory={() => setMobileInspectedStock(null)}
+                addToWatchlist={handleAddToWatchlist}
+                removeFromWatchlist={handleRemoveFromWatchlist}
               />
             </div>
           </div>
@@ -862,7 +879,7 @@ function DashboardPage() {
               {/* Left Column */}
               <div className="lg:col-span-1">
                 <div className="bg-white rounded-lg shadow p-6 mb-6">
-                  <img src="./Richie_3.png" alt="User Avatar" className="w-32 h-32 rounded-full mx-auto mb-4 object-none" />
+                  <img src="./Richie_3.png" alt="User Avatar" className="w-24 h-auto rounded-full mx-auto mb-4 object-none bg-[#F96767]" style={{objectPosition: '-42% -17%'}}/>
                   <h3 className="text-xl font-semibold text-center mb-2">{profileData.name}</h3>
                   <p className="text-gray-600 text-center mb-4">{profileData.email}</p>
                   <p className="text-gray-600 text-center text-sm">Member since: {profileData.memberSince}</p>
